@@ -6,9 +6,6 @@
 #
 ####################################################
 
-# don't forget to add to root's crontab the following
-#12 23 * * * /path/to/dip.scripts/certbot/auto-update.sh
-
 # get ISO 8601 timestamp
 TIMESTAMP=$(date +"%Y%m%dT%H%M%SZ")
 
