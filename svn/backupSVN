@@ -1,0 +1,30 @@
+#!/bin/bash
+
+
+function hotcopy {
+	SOURCE_REPO=$1
+	TEMPDIR=hotcopy
+	FILENAME=`date +%Y%m%d-%H%M%S`_"$SOURCE_REPO".tgz
+	DIR2BACKUP=/mnt/internal/ST2000DM001-1CH164/SYSTEMS/minastirith/SVN
+
+	svnadmin hotcopy /var/www/svn/"$SOURCE_REPO" ~/$TEMPDIR
+	chown -R apache.apache ~/$TEMPDIR
+	tar -c -vpzf $DIR2BACKUP/$FILENAME ~/$TEMPDIR
+	chown netuser.users $DIR2BACKUP/$FILENAME
+	rm -rf ~/$TEMPDIR
+	
+	# find tgz files older than 30 days and delete them
+	find $DIR2BACKUP -name "*.tgz" -type f -mtime +30 -delete
+}
+
+# loop through all directories in /var/www/svn and execute hotcopy
+for dir in /var/www/svn/*/
+do
+    dir=${dir%*/}
+    echo ${dir##*/}
+    hotcopy ${dir##*/}
+done
+
+
+
+
