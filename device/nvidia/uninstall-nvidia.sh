@@ -18,10 +18,10 @@ printf "\n# dkms status\n"
 dkms status
 
 printf "\n# apt remove + purge nvidia*\n"
-#apt-get remove --purge '^nvidia-.*'
+apt-get remove --purge '^nvidia-.*'
 
 printf "\n# check install ubuntu-desktop\n"
-#apt-get install ubuntu-desktop
+apt-get install ubuntu-desktop
 
 
 printf "\n# check if nouveau is in /etc/modules, if not append it\n"
