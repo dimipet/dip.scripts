@@ -5,7 +5,7 @@ function hotcopy {
 	SOURCE_REPO=$1
 	TEMPDIR=hotcopy
 	FILENAME=`date +%Y%m%d-%H%M%S`_"$SOURCE_REPO".tgz
-	DIR2BACKUP=/mnt/internal/ST2000DM001-1CH164/SYSTEMS/minastirith/SVN
+	DIR2BACKUP=/mnt/path/to/backup/dir
 
 	svnadmin hotcopy /var/www/svn/"$SOURCE_REPO" ~/$TEMPDIR
 	chown -R apache.apache ~/$TEMPDIR
