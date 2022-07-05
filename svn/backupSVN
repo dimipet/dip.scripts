@@ -10,7 +10,7 @@ function hotcopy {
 	svnadmin hotcopy /var/www/svn/"$SOURCE_REPO" ~/$TEMPDIR
 	chown -R apache.apache ~/$TEMPDIR
 	tar -c -vpzf $DIR2BACKUP/$FILENAME ~/$TEMPDIR
-	chown netuser.users $DIR2BACKUP/$FILENAME
+	#chown someuser.someuser $DIR2BACKUP/$FILENAME
 	rm -rf ~/$TEMPDIR
 	
 	# find tgz files older than 30 days and delete them
