@@ -1,0 +1,15 @@
+#!/bin/bash
+
+while getopts "u:h:r:l:" var
+do
+  case "$var" in
+    u) user=${OPTARG};;
+    h) host=${OPTARG};;
+    r) remote=${OPTARG};;
+    l) local=${OPTARG};;
+  esac
+done
+
+#echo $user $host $remote $local
+
+sshfs -o allow_other,default_permissions $user@$host:$remote $local 
