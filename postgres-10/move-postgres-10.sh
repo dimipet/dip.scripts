@@ -77,11 +77,11 @@ lftp -c open -e "\
 	set ftp:ssl-force true; \
 	set ftp:ssl-protect-data true; \
 	set ssl:verify-certificate false; \
-	put -O $remote_ftp_dir $data_dir_file; \
-	put -O $remote_ftp_dir $data_dir_file_sha256sum; \
-	put -O $remote_ftp_dir $backup_log; \
+	put -O $ftp_remote_dir $data_dir_file; \
+	put -O $ftp_remote_dir $data_dir_file_sha256sum; \
+	put -O $ftp_remote_dir $backup_log; \
 " \
--u $user,$password $host
+-u $ftp_user,$ftp_password $ftp_host
 
 
 
