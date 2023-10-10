@@ -64,7 +64,6 @@ echo_banner() {
     echo '' | tee "$log"
     echo 'move nextcloud files and postgres db to new host' | tee "$log"
     echo '----------------------------------------' | tee "$log"
-
 }
 
 echo_usage() {
@@ -171,7 +170,6 @@ check_postgres() {
         echo "checks      : postgres database $l_db_name does not exist" | tee -a "$log"
         exit_bad
     fi
-
 }
 
 check_nextcloud() {
@@ -232,7 +230,6 @@ check_ftp() {
         echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port" | tee -a "$log"
         exit_bad
     fi
-
 }
 
 backup() {
