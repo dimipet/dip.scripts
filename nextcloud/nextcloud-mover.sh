@@ -57,7 +57,12 @@ create_log() {
 }
 
 echo_banner() {
-    echo 'nextcloud + postgres move' | tee "$log"
+    echo '----------------------------------------' | tee "$log"
+    echo 'nextcloud mover' | tee "$log"
+    echo '' | tee "$log"
+    echo 'move nextcloud files and postgres db to new host' | tee "$log"
+    echo '----------------------------------------' | tee "$log"
+
 }
 
 echo_usage() {
