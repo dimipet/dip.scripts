@@ -60,9 +60,10 @@ ftp_remote_dir="/"
 timestamp=$(date +"%Y%m%dT%H%M%SZ")
 
 create_log() {
+    local l_workdir=$1
     # create log file
     log="$timestamp".log
-    touch "$log"
+    touch "$l_workdir"/"$log"
 }
 
 echo_banner() {
@@ -240,7 +241,7 @@ check_ftp() {
 }
 
 backup() {
-    create_log
+    create_log $src_work_dir
     echo_banner
     echo "$timestamp" | tee -a "$log"
     uname -ar | tee -a "$log"
@@ -279,6 +280,7 @@ backup() {
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
     echo "running dir : $running_dir" | tee -a "$log"
+    echo "working dir : $src_work_dir" | tee -a "$log"
     echo "script dir  : $script_dir" | tee -a "$log"
 
     local_start="$(date +%s)"
@@ -296,17 +298,18 @@ backup() {
     # dump db
     local_start="$(date +%s)"
     echo "exec: postgres pg_dump" | tee -a "$log"
-    echo "exec: pg_dump sql output is redirected to $timestamp.$src_pg_dump_filename" | tee -a "$log"
+    echo "exec: pg_dump sql output is redirected to $src_work_dir/$timestamp.$src_pg_dump_filename" | tee -a "$log"
     echo "exec: pg_dump error output is redirected to $log" | tee -a "$log"
-    sudo -u $src_db_user pg_dump --port="$src_db_port" --dbname="$src_db_name" >"$timestamp"."$src_pg_dump_filename" 2>>"$log"
-    # FIXME use tee
-    # sudo -u $src_db_user pg_dump --port="$src_db_port" --dbname="$src_db_name" 2>&1 | tee -a "$timestamp"."$src_pg_dump_filename" > /dev/null
-    # sudo -u $src_db_user pg_dump --port="$src_db_port" --dbname="$src_db_name" > >(tee -a "$timestamp"."$src_pg_dump_filename") 2> >(tee -a "$log" >&2)
-    echo "exec: sha512 hashing to" "$timestamp"."$src_pg_dump_filename_sha512" | tee -a "$log"
-    sha512sum "$timestamp"."$src_pg_dump_filename" | tee "$timestamp"."$src_pg_dump_filename_sha512" >/dev/null
+    # using connection strings https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+    pg_dump postgresql://"$src_db_user":"$src_db_password"@"$src_db_host":"$src_db_port"/"$src_db_name" > \
+        >(tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" >/dev/null) \
+        2> >(tee -a "$log" >&2)
+    # hash db dumb
+    echo "exec: sha512 hashing to" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" | tee -a "$log"
+    sha512sum "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" | tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" >/dev/null
     echo "exec: uploading ..." | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$timestamp"."$src_pg_dump_filename"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$timestamp"."$src_pg_dump_filename_sha512"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -316,10 +319,11 @@ backup() {
     # dump nextcloud + user files
     local_start="$(date +%s)"
     echo "exec: tar -czvf nextcloud files + sha512 hashing" 2>&1 | tee -a "$log"
-    tar -czvf "$timestamp"."$src_nextcloud_backup_file" "$src_nextcloud_path" 2>&1 | tee -a "$log"
-    sha512sum "$timestamp"."$src_nextcloud_backup_file" | tee "$timestamp"."$src_nextcloud_backup_file_sha512"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$timestamp"."$src_nextcloud_backup_file"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$timestamp"."$src_nextcloud_backup_file_sha512"
+    tar -czvf "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" "$src_nextcloud_path" 2>&1 | tee -a "$log"
+    sha512sum "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" | tee "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
+    # FIXME you should exit maintenance:mode here - all uploads after 
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
