@@ -265,28 +265,36 @@ backup() {
     fi
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
+    total_time=0
+
     # check settings sanity
+    local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$log"
     check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
     check_nextcloud "$src_apache_user" "$src_nextcloud_path"
     check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "execution time: $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
-    total_time=0
-
-    # get running dir
+    
+    # get running, script and working directories
+    local_start="$(date +%s)"
     running_dir="$(pwd)"
-    # get script dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-
     echo "running dir : $running_dir" | tee -a "$log"
     echo "working dir : $src_work_dir" | tee -a "$log"
     echo "script dir  : $script_dir" | tee -a "$log"
-
-    local_start="$(date +%s)"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "execution time: $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # set maintenance:mode
+    local_start="$(date +%s)"
     echo "exec: occ maintenance:mode --on" | tee -a "$log"
     sudo -u www-data php "$src_nextcloud_path"/occ maintenance:mode --on 2>&1 | tee -a "$log"
     local_end="$(date +%s)"
@@ -307,9 +315,6 @@ backup() {
     # hash db dumb
     echo "exec: sha512 hashing to" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" | tee -a "$log"
     sha512sum "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" | tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" >/dev/null
-    echo "exec: uploading ..." | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -321,9 +326,6 @@ backup() {
     echo "exec: tar -czvf nextcloud files + sha512 hashing" 2>&1 | tee -a "$log"
     tar -czvf "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" "$src_nextcloud_path" 2>&1 | tee -a "$log"
     sha512sum "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" | tee "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
-    # FIXME you should exit maintenance:mode here - all uploads after 
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -340,7 +342,22 @@ backup() {
     echo "execution time: $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
+    # upload files
+    local_start="$(date +%s)"
+    echo "exec: uploading files ..." | tee -a "$log"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo '-------------------------------------------------------------------------' | tee -a "$log"
+
+    # upload log
     echo "total execution time: $total_time seconds" | tee -a "$log"
+    echo "exec: uploading log ..." | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$log"
 
 }
