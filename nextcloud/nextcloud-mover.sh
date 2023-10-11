@@ -231,7 +231,7 @@ check_ftp() {
         exit_bad
     fi
 
-    ftp_list $l_ftp_protocol $l_ftp_host $l_ftp_port $l_ftp_user $l_ftp_password $l_ftp_remote_dir &>/dev/null
+    ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" &>/dev/null
     if [ $? -eq 0 ]; then
         echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port" | tee -a "$log"
     else
