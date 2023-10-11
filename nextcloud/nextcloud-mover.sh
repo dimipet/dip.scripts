@@ -38,12 +38,18 @@ src_pg_dump_filename_sha512=nextcloud-sql-plain-backup.sql.sha512
 src_apache_user=www-data
 dst_apache_user=www-data
 
-# nextcloud source settings
-src_nextcloud_path=/some/path/to/your/nextcloud/instance
+# nextcloud source system installation and data directory
+# FIXME data directory not used yet
+src_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
+src_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
+# nextcloud backup file
 src_nextcloud_backup_file=nextcloud-files-backup.tar.gz
 src_nextcloud_backup_file_sha512=nextcloud-files-backup.tar.gz.sha512
-# nextcloud destination settings
-dst_nextcloud_path=/var/www/nextcloud
+
+# nextcloud destination system installation and data directory
+# FIXME data directory not used yet
+dst_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
+dst_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
 
 # lftp settings
 ftp_protocol="ftps"
@@ -271,7 +277,7 @@ backup() {
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$log"
     check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
-    check_nextcloud "$src_apache_user" "$src_nextcloud_path"
+    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path"
     check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -296,7 +302,7 @@ backup() {
     # set maintenance:mode
     local_start="$(date +%s)"
     echo "exec: occ maintenance:mode --on" | tee -a "$log"
-    sudo -u www-data php "$src_nextcloud_path"/occ maintenance:mode --on 2>&1 | tee -a "$log"
+    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --on 2>&1 | tee -a "$log"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -324,7 +330,7 @@ backup() {
     # dump nextcloud + user files
     local_start="$(date +%s)"
     echo "exec: tar -czvf nextcloud files + sha512 hashing" 2>&1 | tee -a "$log"
-    tar -czvf "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" "$src_nextcloud_path" 2>&1 | tee -a "$log"
+    tar -czvf "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" "$src_nextcloud_inst_path" 2>&1 | tee -a "$log"
     sha512sum "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file" | tee "$src_work_dir"/"$timestamp"."$src_nextcloud_backup_file_sha512"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -335,7 +341,7 @@ backup() {
     # set occ maintenance:mode
     local_start="$(date +%s)"
     echo "exec: occ maintenance:mode --off" | tee -a "$log"
-    sudo -u www-data php "$src_nextcloud_path"/occ maintenance:mode --off 2>&1 | tee -a "$log"
+    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --off 2>&1 | tee -a "$log"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
