@@ -20,9 +20,16 @@ dst_db_name=nextcloud
 dst_db_user=postgres
 dst_db_password=
 
+# source system directory where the backup() function will use to output/place
+# the postges database dumb, nextcloud files, logs etc
+src_work_dir=./
+# destination system directory where the restore() function will download files 
+# from the ftp and then restore the postgres database dumb, nextcloud files 
+# create restore process logs etc
+dst_work_dir=./
+
 # pg_dump settings
 # place the dump inside nextcloud path so you can tar it at once
-src_pg_dump_path=./
 src_pg_dump_filename=nextcloud-sql-plain-backup.sql
 src_pg_dump_filename_sha512=nextcloud-sql-plain-backup.sql.sha512
 
@@ -54,7 +61,7 @@ timestamp=$(date +"%Y%m%dT%H%M%SZ")
 
 create_log() {
     # create log file
-    log=$timestamp.log
+    log="$timestamp".log
     touch "$log"
 }
 
