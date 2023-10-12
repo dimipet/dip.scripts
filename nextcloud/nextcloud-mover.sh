@@ -321,7 +321,7 @@ backup() {
 
     # dump db
     local_start="$(date +%s)"
-    echo "exec: postgres pg_dump $src_work_dir" | tee -a "$log"
+    echo "exec: postgres pg_dump" | tee -a "$log"
     echo "exec: using workdir $src_work_dir" | tee -a "$log"
     echo "exec: pg_dump sql output is redirected to $timestamp.$src_pg_dump_filename" | tee -a "$log"
     echo "exec: pg_dump error output is redirected to $log" | tee -a "$log"
@@ -330,7 +330,7 @@ backup() {
         >(tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" >/dev/null) \
         2> >(tee -a "$log" >&2)
     # hash db dumb
-    echo "exec: sha512 hashing to $timestamp"."$src_pg_dump_filename_sha512" | tee -a "$log"
+    echo "exec: sha512 hashing to $timestamp.$src_pg_dump_filename_sha512" | tee -a "$log"
     sha512sum "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" \
         | tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" >/dev/null
     local_end="$(date +%s)"
