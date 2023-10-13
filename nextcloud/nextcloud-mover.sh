@@ -104,6 +104,10 @@ ftp_upload() {
 	set ftp:ssl-force true; \
 	set ftp:ssl-protect-data true; \
 	set ssl:verify-certificate false; \
+    set net:timeout 5; \
+    set net:max-retries 2; \
+    set net:reconnect-interval-base 5; \
+    set xfer:verify true; \
 	put -O $l_ftp_remote_dir $l_ftp_file; \
    " \
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
@@ -394,16 +398,28 @@ backup() {
     
     echo "exec        : uploading $timestamp.$src_pg_dump_filename" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     echo "exec        : uploading $timestamp.$src_pg_dump_filename_sha512" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     echo "exec        : uploading $timestamp.$src_nextcloud_inst_file_backup" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     echo "exec        : uploading $timestamp.$src_nextcloud_inst_file_backup_sha512" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup_sha512"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     echo "exec        : uploading $timestamp.$src_nextcloud_data_file_backup" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     echo "exec        : uploading $timestamp"."$src_nextcloud_data_file_backup_sha512" | tee -a "$log"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup_sha512"
+    if [ $? -ne 0 ]; then exit_bad; fi
+    
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
