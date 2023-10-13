@@ -64,22 +64,12 @@ ftp_remote_dir="/"
 # DEFAULT APP SETTINGS END HERE
 # -----------------------------------------------------------------------------
 
-# get ISO 8601 timestamp
-timestamp=$(date +"%Y%m%dT%H%M%SZ")
-
-create_log() {
-    local l_workdir=$1
-    # create log file
-    log="$timestamp".log
-    touch "$l_workdir"/"$log"
-}
-
 echo_banner() {
-    echo '----------------------------------------' | tee "$log"
-    echo 'nextcloud mover' | tee "$log"
-    echo '' | tee "$log"
-    echo 'move nextcloud files and postgres db to new host' | tee "$log"
-    echo '----------------------------------------' | tee "$log"
+    echo '----------------------------------------'
+    echo 'nextcloud-mover'
+    echo ''
+    echo 'move nextcloud files and postgres db to new host'
+    echo '----------------------------------------'
 }
 
 echo_usage() {
@@ -138,7 +128,7 @@ ftp_list() {
 }
 
 exit_bad() {
-    echo "--- exiting ... " | tee -a "$log"
+    echo "--- exiting ... "
     exit -1
 }
 
@@ -151,39 +141,39 @@ check_postgres() {
     local l_db_password=$6
 
     if command -v pg_dump &>/dev/null; then
-        echo "checks      : postgres pg_dump found" | tee -a "$log"
+        echo "checks      : postgres pg_dump found"
     else
-        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?" | tee -a "$log"
+        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?"
         exit_bad
     fi
 
     if lsof -Pi :"$l_db_port" -sTCP:LISTEN -t >/dev/null; then
-        echo "checks      : postgres listening on port $l_db_port" | tee -a "$log"
+        echo "checks      : postgres listening on port $l_db_port"
     else
-        echo "checks      : postgres not listening port $l_db_port" | tee -a "$log"
+        echo "checks      : postgres not listening port $l_db_port"
         exit_bad
     fi
 
     # make sure specific ip/host and specific port is accepting connections
     pg_isready -h "$l_db_host" -p "$l_db_port" | grep 'accepting connections' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : postgres accepting connections" | tee -a "$log"
+        echo "checks      : postgres accepting connections"
     else
-        echo "checks      : postgres not accepting connections" | tee -a "$log"
+        echo "checks      : postgres not accepting connections"
         exit_bad
     fi
 
     # make sure that the specific database user can connect to specific host:port/database
     psql postgresql://"$l_db_user":"$l_db_password"@"$l_db_host":"$l_db_port"/"$l_db_name" -lqt | cut -d \| -f 1 | grep -qw "$l_db_name"
     if [ $? -eq 0 ]; then
-        echo "checks      : postgres database $l_db_user exists" | tee -a "$log"
-        echo "checks      : postgres database $l_db_user can connect to $l_db_host:$l_db_port/$l_db_name" | tee -a "$log"
-        echo "checks      : postgres database $l_db_name exists" | tee -a "$log"
+        echo "checks      : postgres database $l_db_user exists"
+        echo "checks      : postgres database $l_db_user can connect to $l_db_host:$l_db_port/$l_db_name"
+        echo "checks      : postgres database $l_db_name exists"
     else
-        echo "checks      : postgres something of the following went wrong :" | tee -a "$log"
-        echo "checks      : postgres database $l_db_user does not exist OR ..." | tee -a "$log"
-        echo "checks      : postgres database $l_db_user can not connect to $l_db_host:$l_db_port OR ..." | tee -a "$log"
-        echo "checks      : postgres database $l_db_name does not exist" | tee -a "$log"
+        echo "checks      : postgres something of the following went wrong :"
+        echo "checks      : postgres database $l_db_user does not exist OR ..."
+        echo "checks      : postgres database $l_db_user can not connect to $l_db_host:$l_db_port OR ..."
+        echo "checks      : postgres database $l_db_name does not exist"
         exit_bad
     fi
 }
@@ -194,32 +184,32 @@ check_nextcloud() {
     local l_nextcloud_data_path=$3
 
     if [ -d "$l_nextcloud_inst_path" ]; then
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists" | tee -a "$log"
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists"
     else
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist" | tee -a "$log"
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist"
         exit_bad
     fi
     
     if [ -d "$l_nextcloud_inst_path" ]; then
-        echo "checks      : nextcloud data $l_nextcloud_data_path exists" | tee -a "$log"
+        echo "checks      : nextcloud data $l_nextcloud_data_path exists"
     else
-        echo "checks      : nextcloud data $l_nextcloud_data_path does not exist" | tee -a "$log"
+        echo "checks      : nextcloud data $l_nextcloud_data_path does not exist"
         exit_bad
     fi
 
     sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ status | grep 'installed: true' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : nextcloud $l_nextcloud_inst_path/occ exists" | tee -a "$log"
+        echo "checks      : nextcloud $l_nextcloud_inst_path/occ exists"
     else
-        echo "checks      : nextcloud $l_nextcloud_inst_path/occ does not exist" | tee -a "$log"
+        echo "checks      : nextcloud $l_nextcloud_inst_path/occ does not exist"
         exit_bad
     fi
 
     sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode | grep -E 'enabled|disabled' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : nextcloud $(sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode)" | tee -a "$log"
+        echo "checks      : nextcloud $(sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode)"
     else
-        echo "checks      : nextcloud maintenance:mode problem" | tee -a "$log"
+        echo "checks      : nextcloud maintenance:mode problem"
         exit_bad
     fi
 }
@@ -233,31 +223,36 @@ check_ftp() {
     local l_ftp_remote_dir=$6
 
     if command -v lftp &>/dev/null; then
-        echo "checks      : ftp lftp found" | tee -a "$log"
+        echo "checks      : ftp lftp found"
     else
-        echo "checks      : ftp lftp could not be found - please install it" | tee -a "$log"
+        echo "checks      : ftp lftp could not be found - please install it"
         exit_bad
     fi
 
     timeout 3 bash -c "cat < /dev/null > /dev/tcp/$l_ftp_host/$l_ftp_port"
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp remote host $l_ftp_host is accepting requests on port $l_ftp_port" | tee -a "$log"
+        echo "checks      : ftp remote host $l_ftp_host is accepting requests on port $l_ftp_port"
     else
-        echo "checks      : ftp remote host $l_ftp_host is not accepting requests on port $l_ftp_port" | tee -a "$log"
+        echo "checks      : ftp remote host $l_ftp_host is not accepting requests on port $l_ftp_port"
         exit_bad
     fi
 
     ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port" | tee -a "$log"
+        echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port"
     else
-        echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port" | tee -a "$log"
+        echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port"
         exit_bad
     fi
 }
 
 backup() {
-    create_log $src_work_dir
+    # get ISO 8601 timestamp
+    local timestamp
+    timestamp=$(date +"%Y%m%dT%H%M%SZ")
+    local log
+    log="$timestamp".log
+    touch "$src_work_dir"/"$log"
     echo_banner
     echo "$timestamp" | tee -a "$log"
     uname -ar | tee -a "$log"
@@ -286,15 +281,15 @@ backup() {
     # check settings sanity
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$log"
-    check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
-    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir"
+    check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$log"
+    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$log"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" | tee -a "$log"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
-
+    
     
     # get running, script and working directories
     local_start="$(date +%s)"
@@ -306,17 +301,30 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
-    # set maintenance:mode
+    # get running, script and working directories
+    local_start="$(date +%s)"
+    running_dir="$(pwd)"
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+    echo "running dir : $running_dir" | tee -a "$log"
+    echo "working dir : $src_work_dir" | tee -a "$log"
+    echo "script dir  : $script_dir" | tee -a "$log"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
+    echo '-------------------------------------------------------------------------' | tee -a "$log"
+
+    # # set maintenance:mode
     local_start="$(date +%s)"
     echo "exec: occ maintenance:mode --on" | tee -a "$log"
     sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --on 2>&1 | tee -a "$log"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # dump db
@@ -336,7 +344,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # backup nextcloud installation files
@@ -352,7 +360,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # backup nextcloud data files
@@ -367,7 +375,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # set occ maintenance:mode
@@ -377,7 +385,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # upload files
@@ -399,7 +407,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "execution time: $local_exec_time seconds" | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
     echo '-------------------------------------------------------------------------' | tee -a "$log"
 
     # upload log
