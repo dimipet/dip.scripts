@@ -28,10 +28,14 @@ src_work_dir=./
 # create restore process logs etc
 dst_work_dir=./
 
+# tar.gz files of db dumb, nextcloud installation files, netxcloud data files
+# are going to be hashed using sha512 and their sha512 checksum will be written
+# in the following file
+src_sha512=some-filename-with-extension.sha512
+
 # pg_dump settings
 # place the dump inside nextcloud path so you can tar it at once
 src_pg_dump_filename=nextcloud-sql-plain-backup.sql
-src_pg_dump_filename_sha512=nextcloud-sql-plain-backup.sql.sha512
 
 # apache settings
 # used for sudo -u user occ maintenance:mode
@@ -44,9 +48,7 @@ src_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
 src_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
 # nextcloud backup file
 src_nextcloud_inst_file_backup=nextcloud-inst-files-backup.tar.gz
-src_nextcloud_inst_file_backup_sha512=nextcloud-inst-files-backup.tar.gz.sha512
 src_nextcloud_data_file_backup=nextcloud-data-files-backup.tar.gz
-src_nextcloud_data_file_backup_sha512=nextcloud-data-files-backup.tar.gz.sha512
 
 # nextcloud destination system installation and data directory
 # FIXME data directory not used yet
@@ -251,186 +253,185 @@ check_ftp() {
 }
 
 backup() {
+    # change to working dir
+    cd "$src_work_dir" || exit_bad
+    
     # get ISO 8601 timestamp
     local timestamp
     timestamp=$(date +"%Y%m%dT%H%M%SZ")
-    local log
-    log="$timestamp".log
-    touch "$src_work_dir"/"$log"
+    
+    # create log file
+    local logfile
+    logfile="$timestamp".log
+    touch "$logfile"
+
+    # create sha512 file
+    local sha512file
+    sha512file="$timestamp"."$src_sha512"
+    touch "$sha512file"
+
+    # create pg_dump file
+    local pg_dump_file
+    pg_dump_file="$timestamp"."$src_pg_dump_filename"
+
+    # create nextcloud installation backup file
+    local nextcloud_inst_bu_file
+    nextcloud_inst_bu_file="$timestamp"."$src_nextcloud_inst_file_backup"
+
+    # create nextcloud data backup file
+    local nextcloud_data_bu_file
+    nextcloud_data_bu_file="$timestamp"."$src_nextcloud_data_file_backup"
+
     echo_banner
-    echo "$timestamp" | tee -a "$log"
-    uname -ar | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "$timestamp" | tee -a "$logfile"
+    uname -ar | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # application properties check if arg exist
     if [ -z "$1" ]; then
-        echo "props       : no argument for external file supplied" | tee -a "$log"
-        echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$log"
+        echo "props       : no argument for external file supplied" | tee -a "$logfile"
+        echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
     else
         app_props=$1
-        echo "props file  : $app_props" | tee -a "$log"
+        echo "props file  : $app_props" | tee -a "$logfile"
         # check if file supplied as cli argument, exists
         if [ -f "$app_props" ]; then
-            echo 'props file  : found, sourcing ...' | tee -a "$log"
+            echo 'props file  : found, sourcing ...' | tee -a "$logfile"
             source "$app_props"
         else
-            echo "props file  : $app_props does not exist." | tee -a "$log"
+            echo "props file  : $app_props does not exist." | tee -a "$logfile"
             exit_bad
         fi
     fi
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     total_time=0
 
     # check settings sanity
     local_start="$(date +%s)"
-    echo "checks      : starting to check settings sanity" | tee -a "$log"
-    check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$log"
-    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$log"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" | tee -a "$log"
+    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
+    check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$logfile"
+    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
     
-    
-    # get running, script and working directories
+    # get running, script and working directories and files
     local_start="$(date +%s)"
     running_dir="$(pwd)"
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-    echo "running dir : $running_dir" | tee -a "$log"
-    echo "working dir : $src_work_dir" | tee -a "$log"
-    echo "script dir  : $script_dir" | tee -a "$log"
+    echo "running dir : $running_dir" | tee -a "$logfile"
+    echo "working dir : $src_work_dir" | tee -a "$logfile"
+    echo "script dir  : $script_dir" | tee -a "$logfile"
+    echo "log file               : $logfile" | tee -a "$logfile"
+    echo "sha512 file            : $sha512file" | tee -a "$logfile"
+    echo "pgdump file            : $pg_dump_file" | tee -a "$logfile"
+    echo "nextcloud install file : $nextcloud_inst_bu_file" | tee -a "$logfile"
+    echo "nextcloud data file    : $nextcloud_data_bu_file" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    # get running, script and working directories
+    # set maintenance:mode
     local_start="$(date +%s)"
-    running_dir="$(pwd)"
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-    echo "running dir : $running_dir" | tee -a "$log"
-    echo "working dir : $src_work_dir" | tee -a "$log"
-    echo "script dir  : $script_dir" | tee -a "$log"
+    echo "exec        : occ maintenance:mode --on" | tee -a "$logfile"
+    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --on 2>&1 | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
-
-    # # set maintenance:mode
-    local_start="$(date +%s)"
-    echo "exec        : occ maintenance:mode --on" | tee -a "$log"
-    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --on 2>&1 | tee -a "$log"
-    local_end="$(date +%s)"
-    local_exec_time="$((local_end - local_start))"
-    total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # dump db
     local_start="$(date +%s)"
-    echo "exec        : postgres pg_dump" | tee -a "$log"
-    echo "exec        : using workdir $src_work_dir" | tee -a "$log"
-    echo "exec        : pg_dump sql output is redirected to $timestamp.$src_pg_dump_filename" | tee -a "$log"
-    echo "exec        : pg_dump error output is redirected to $log" | tee -a "$log"
+    echo "exec        : postgres pg_dump" | tee -a "$logfile"
+    echo "exec        : pg_dump sql output is redirected to $timestamp.$src_pg_dump_filename" | tee -a "$logfile"
+    echo "exec        : pg_dump error output is redirected to $logfile" | tee -a "$logfile"
     # using connection strings https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
     pg_dump postgresql://"$src_db_user":"$src_db_password"@"$src_db_host":"$src_db_port"/"$src_db_name" > \
-        >(tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" >/dev/null) \
-        2> >(tee -a "$log" >&2)
+        >(tee "$pg_dump_file" >/dev/null) \
+        2> >(tee -a "$logfile" >&2)
     # hash db dumb
-    echo "exec        : sha512 hashing to $timestamp.$src_pg_dump_filename_sha512" | tee -a "$log"
-    sha512sum "$src_work_dir"/"$timestamp"."$src_pg_dump_filename" \
-        | tee "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512" >/dev/null
+    echo "exec        : hashing $timestamp.$src_pg_dump_filename to $sha512file" | tee -a "$logfile"
+    sha512sum "$pg_dump_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # backup nextcloud installation files
     local_start="$(date +%s)"
-    echo "exec        : tar nextcloud installation files" 2>&1 | tee -a "$log"
-    echo "exec        : using workdir $src_work_dir" | tee -a "$log"
+    echo "exec        : tar nextcloud installation files" 2>&1 | tee -a "$logfile"
     tar -c --exclude="$src_nextcloud_data_path" \
-        -vpzf "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup" \
-        "$src_nextcloud_inst_path" 2>&1 | tee -a "$log"
-    echo "exec        : sha512 hash tar.gz" 2>&1 | tee -a "$log"        
-    sha512sum "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup" \
-        | tee "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup_sha512"
+        -vpzf "$nextcloud_inst_bu_file" \
+        "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+    echo "exec        : hashing $timestamp.$src_nextcloud_inst_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
+    sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # backup nextcloud data files
         local_start="$(date +%s)"
-    echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$log"
-    echo "exec        : using workdir $src_work_dir" | tee -a "$log"
-    tar -cvpzf "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup" \
-        "$src_nextcloud_data_path" 2>&1 | tee -a "$log"
-    echo "exec        : sha512 hash tar.gz" 2>&1 | tee -a "$log"        
-    sha512sum "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup" \
-        | tee "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup_sha512"
+    echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
+    tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+    echo "exec        : hashing $timestamp.$src_nextcloud_data_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
+    sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # set occ maintenance:mode
     local_start="$(date +%s)"
-    echo "exec        : occ maintenance:mode --off" | tee -a "$log"
-    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --off 2>&1 | tee -a "$log"
+    echo "exec        : occ maintenance:mode --off" | tee -a "$logfile"
+    sudo -u www-data php "$src_nextcloud_inst_path"/occ maintenance:mode --off 2>&1 | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # upload files
     local_start="$(date +%s)"
-    echo "exec        : uploading files ..." | tee -a "$log"
+    echo "exec        : uploading files ..." | tee -a "$logfile"
     
-    echo "exec        : uploading $timestamp.$src_pg_dump_filename" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename"
-    if [ $? -ne 0 ]; then exit_bad; fi
+    echo "exec        : uploading pg_dump_file" | tee -a "$logfile"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$pg_dump_file"
+    if [ $? -ne 0 ]; then exit_bad; fi 
     
-    echo "exec        : uploading $timestamp.$src_pg_dump_filename_sha512" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_pg_dump_filename_sha512"
-    if [ $? -ne 0 ]; then exit_bad; fi
+    echo "exec        : uploading $nextcloud_inst_bu_file" | tee -a "$logfile"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$nextcloud_inst_bu_file"
+    if [ $? -ne 0 ]; then exit_bad; fi 
+
+    echo "exec        : uploading $nextcloud_data_bu_file" | tee -a "$logfile"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$nextcloud_data_bu_file"
+    if [ $? -ne 0 ]; then exit_bad; fi 
     
-    echo "exec        : uploading $timestamp.$src_nextcloud_inst_file_backup" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup"
-    if [ $? -ne 0 ]; then exit_bad; fi
-    
-    echo "exec        : uploading $timestamp.$src_nextcloud_inst_file_backup_sha512" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_inst_file_backup_sha512"
-    if [ $? -ne 0 ]; then exit_bad; fi
-    
-    echo "exec        : uploading $timestamp.$src_nextcloud_data_file_backup" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup"
-    if [ $? -ne 0 ]; then exit_bad; fi
-    
-    echo "exec        : uploading $timestamp"."$src_nextcloud_data_file_backup_sha512" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$src_work_dir"/"$timestamp"."$src_nextcloud_data_file_backup_sha512"
-    if [ $? -ne 0 ]; then exit_bad; fi
-    
+    echo "exec        : uploading $sha512file" | tee -a "$logfile"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$sha512file"
+    if [ $? -ne 0 ]; then exit_bad; fi 
+        
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$log"
-    echo '-------------------------------------------------------------------------' | tee -a "$log"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # upload log
-    echo "total time  : $total_time seconds" | tee -a "$log"
-    echo "exec        : uploading log ..." | tee -a "$log"
-    echo "exec        : uploading $log" | tee -a "$log"
-    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$log"
+    echo "total time  : $total_time seconds" | tee -a "$logfile"
+    echo "exec        : uploading log ..." | tee -a "$logfile"
+    echo "exec        : uploading $logfile" | tee -a "$logfile"
+    ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$logfile"
 
 }
 
