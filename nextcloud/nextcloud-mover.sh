@@ -265,23 +265,6 @@ backup() {
     logfile="$timestamp".log
     touch "$logfile"
 
-    # create sha512 file
-    local sha512file
-    sha512file="$timestamp"."$src_sha512"
-    touch "$sha512file"
-
-    # create pg_dump file
-    local pg_dump_file
-    pg_dump_file="$timestamp"."$src_pg_dump_filename"
-
-    # create nextcloud installation backup file
-    local nextcloud_inst_bu_file
-    nextcloud_inst_bu_file="$timestamp"."$src_nextcloud_inst_file_backup"
-
-    # create nextcloud data backup file
-    local nextcloud_data_bu_file
-    nextcloud_data_bu_file="$timestamp"."$src_nextcloud_data_file_backup"
-
     echo_banner
     echo "$timestamp" | tee -a "$logfile"
     uname -ar | tee -a "$logfile"
@@ -305,6 +288,23 @@ backup() {
     fi
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
+    # create sha512 file
+    local sha512file
+    sha512file="$timestamp"."$src_sha512"
+    touch "$sha512file"
+
+    # create pg_dump file
+    local pg_dump_file
+    pg_dump_file="$timestamp"."$src_pg_dump_filename"
+
+    # create nextcloud installation backup file
+    local nextcloud_inst_bu_file
+    nextcloud_inst_bu_file="$timestamp"."$src_nextcloud_inst_file_backup"
+
+    # create nextcloud data backup file
+    local nextcloud_data_bu_file
+    nextcloud_data_bu_file="$timestamp"."$src_nextcloud_data_file_backup"
+
     total_time=0
 
     # check settings sanity
@@ -326,11 +326,11 @@ backup() {
     echo "running dir : $running_dir" | tee -a "$logfile"
     echo "working dir : $src_work_dir" | tee -a "$logfile"
     echo "script dir  : $script_dir" | tee -a "$logfile"
-    echo "log file               : $logfile" | tee -a "$logfile"
-    echo "sha512 file            : $sha512file" | tee -a "$logfile"
-    echo "pgdump file            : $pg_dump_file" | tee -a "$logfile"
-    echo "nextcloud install file : $nextcloud_inst_bu_file" | tee -a "$logfile"
-    echo "nextcloud data file    : $nextcloud_data_bu_file" | tee -a "$logfile"
+    echo "log file            : $logfile" | tee -a "$logfile"
+    echo "sha512 file         : $sha512file" | tee -a "$logfile"
+    echo "pgdump file         : $pg_dump_file" | tee -a "$logfile"
+    echo "nextcloud inst file : $nextcloud_inst_bu_file" | tee -a "$logfile"
+    echo "nextcloud data file : $nextcloud_data_bu_file" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -372,7 +372,7 @@ backup() {
         -vpzf "$nextcloud_inst_bu_file" \
         "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$src_nextcloud_inst_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
-    sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file"
+    sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -380,11 +380,11 @@ backup() {
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # backup nextcloud data files
-        local_start="$(date +%s)"
+    local_start="$(date +%s)"
     echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
     tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$src_nextcloud_data_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
-    sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file"
+    sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
