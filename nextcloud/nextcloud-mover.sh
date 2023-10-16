@@ -111,7 +111,7 @@ ftp_upload() {
     set net:reconnect-interval-base 5; \
     set xfer:verify true; \
 	put -O $l_ftp_remote_dir $l_ftp_file; \
-   " \
+    " \
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
 }
 
@@ -128,8 +128,8 @@ ftp_list() {
 	set ftp:ssl-force true; \
 	set ftp:ssl-protect-data true; \
 	set ssl:verify-certificate false; \
-	ls -la $l_ftp_remote_dir; \
-   " \
+	cls $l_ftp_remote_dir; \
+    " \
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
 }
 
