@@ -74,7 +74,7 @@ ftp_host="192.168.1.2"
 ftp_port="990"
 ftp_user="change-this-to-your-username"
 ftp_password="change-this-to-your-password"
-ftp_remote_dir="/"
+ftp_remote_dir="some-dir/"
 
 # DEFAULT APP SETTINGS END HERE
 # -----------------------------------------------------------------------------
