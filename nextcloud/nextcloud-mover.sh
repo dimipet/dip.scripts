@@ -3,6 +3,19 @@
 # -----------------------------------------------------------------------------
 # DEFAULT APP SETTINGS
 
+# app artifacts filename suffixes
+backup_log_suffix=backup.log
+restore_log_suffix=restore.log
+# tar.gz files of db dumb, nextcloud installation files, netxcloud data files
+# are going to be hashed using sha512 and their sha512 checksum will be written
+# in the following file
+sha512_filename_suffix=hash.sha512
+# backup db and restore from files using this suffix 
+pg_dump_filename_suffix=nextcloud-sql-plain-backup.sql
+# nextcloud backup files suffix: seperate for install and data
+nextcloud_inst_filename_suffix=nextcloud-inst-files-backup.tar.gz
+nextcloud_data_filename_suffix=nextcloud-data-files-backup.tar.gz
+
 # postgres server settings
 src_pg_user=postgres
 dst_pg_user=postgres
@@ -28,14 +41,6 @@ src_work_dir=./
 # create restore process logs etc
 dst_work_dir=./
 
-# tar.gz files of db dumb, nextcloud installation files, netxcloud data files
-# are going to be hashed using sha512 and their sha512 checksum will be written
-# in the following file
-src_sha512=some-filename-with-extension.sha512
-
-# pg_dump settings
-# place the dump inside nextcloud path so you can tar it at once
-src_pg_dump_filename=nextcloud-sql-plain-backup.sql
 
 # apache settings
 # used for sudo -u user occ maintenance:mode
@@ -46,9 +51,6 @@ dst_apache_user=www-data
 # FIXME data directory not used yet
 src_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
 src_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
-# nextcloud backup file
-src_nextcloud_inst_file_backup=nextcloud-inst-files-backup.tar.gz
-src_nextcloud_data_file_backup=nextcloud-data-files-backup.tar.gz
 
 # nextcloud destination system installation and data directory
 # FIXME data directory not used yet
@@ -298,7 +300,7 @@ backup() {
     
     # create log file
     local logfile
-    logfile="$timestamp".log
+    logfile="$timestamp"."$backup_log_suffix"
     touch "$logfile"
 
     echo_banner
@@ -326,20 +328,20 @@ backup() {
 
     # create sha512 file
     local sha512file
-    sha512file="$timestamp"."$src_sha512"
+    sha512file="$timestamp"."$sha512_filename_suffix"
     touch "$sha512file"
 
     # create pg_dump file
     local pg_dump_file
-    pg_dump_file="$timestamp"."$src_pg_dump_filename"
+    pg_dump_file="$timestamp"."$pg_dump_filename_suffix"
 
     # create nextcloud installation backup file
     local nextcloud_inst_bu_file
-    nextcloud_inst_bu_file="$timestamp"."$src_nextcloud_inst_file_backup"
+    nextcloud_inst_bu_file="$timestamp"."$nextcloud_inst_filename_suffix"
 
     # create nextcloud data backup file
     local nextcloud_data_bu_file
-    nextcloud_data_bu_file="$timestamp"."$src_nextcloud_data_file_backup"
+    nextcloud_data_bu_file="$timestamp"."$nextcloud_data_filename_suffix"
 
     total_time=0
 
@@ -386,14 +388,14 @@ backup() {
     # dump db
     local_start="$(date +%s)"
     echo "exec        : postgres pg_dump" | tee -a "$logfile"
-    echo "exec        : pg_dump sql output is redirected to $timestamp.$src_pg_dump_filename" | tee -a "$logfile"
+    echo "exec        : pg_dump sql output is redirected to $timestamp.$pg_dump_filename_suffix" | tee -a "$logfile"
     echo "exec        : pg_dump error output is redirected to $logfile" | tee -a "$logfile"
     # using connection strings https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
     pg_dump postgresql://"$src_db_user":"$src_db_password"@"$src_db_host":"$src_db_port"/"$src_db_name" > \
         >(tee "$pg_dump_file" >/dev/null) \
         2> >(tee -a "$logfile" >&2)
     # hash db dumb
-    echo "exec        : hashing $timestamp.$src_pg_dump_filename to $sha512file" | tee -a "$logfile"
+    echo "exec        : hashing $timestamp.$pg_dump_filename_suffix to $sha512file" | tee -a "$logfile"
     sha512sum "$pg_dump_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -407,7 +409,7 @@ backup() {
     tar -c --exclude="$src_nextcloud_data_path" \
         -vpzf "$nextcloud_inst_bu_file" \
         "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
-    echo "exec        : hashing $timestamp.$src_nextcloud_inst_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
+    echo "exec        : hashing $timestamp.$nextcloud_inst_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -419,7 +421,7 @@ backup() {
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
     tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
-    echo "exec        : hashing $timestamp.$src_nextcloud_data_file_backup to sha512file" 2>&1 | tee -a "$logfile"        
+    echo "exec        : hashing $timestamp.$nextcloud_data_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -481,7 +483,7 @@ restore() {
     
     # create log file
     local logfile
-    logfile="$timestamp".log
+    logfile="$timestamp"."$restore_log_suffix"
     touch "$logfile"
 
     echo_banner
@@ -530,11 +532,11 @@ restore() {
     # check if they exist on server (or exit)
 
     # download 
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".sha512
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".log
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-sql-plain-backup.sql
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-inst-files-backup.tar.gz
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-data-files-backup.tar.gz
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
 
     # validate sha512 sum
 
