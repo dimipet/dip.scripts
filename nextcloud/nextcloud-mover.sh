@@ -526,7 +526,9 @@ restore() {
     # get all restore candidates
     shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer")
     # filter only *.sha as we'll use them as toc to download
-    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1 | sed 's/\/nextcloud\///g' | sed 's/.sha512//g' )
+    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
+    selected=${selected/$ftp_remote_dir}
+    selected=${selected/.$sha512_filename_suffix}
     echo "selected $selected"
     
     # check if they exist on server (or exit)
