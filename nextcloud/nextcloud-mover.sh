@@ -54,6 +54,17 @@ src_nextcloud_data_file_backup=nextcloud-data-files-backup.tar.gz
 # FIXME data directory not used yet
 dst_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
 dst_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
+# ftp server will usually have many backups uploaded from source host,
+# execute a listing (such as ls -la) on ftp server and pick the 1st
+# file that shows up in order to download and restore. 
+# Possible sorting options are: "name", "size", "date" and their 
+# meaning are as follows
+#   name : will sort backups alphabetical, 
+#   size : will sort backups from max to min size 
+#   date : will sort backups from newest to oldest 
+# Specifying a specific filename is not supported yet.
+# Listing (ls -la) is case-sensitive
+dst_nextcloud_download_prefer=date
 
 # lftp settings
 ftp_protocol="ftps"
@@ -115,6 +126,29 @@ ftp_upload() {
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
 }
 
+ftp_download() {
+    local l_ftp_protocol=$1
+    local l_ftp_host=$2
+    local l_ftp_port=$3
+    local l_ftp_user=$4
+    local l_ftp_password=$5
+    local l_ftp_remote_dir=$6
+    local l_ftp_file=$7
+    
+    lftp -u "$l_ftp_user","$l_ftp_password" "$l_ftp_host" <<EOF
+        set ftps:initial-prot;
+        set ftp:ssl-force true;
+        set ftp:ssl-protect-data true;
+        set ssl:verify-certificate false;
+        set net:timeout 5;
+        set net:max-retries 2;
+        set net:reconnect-interval-base 5;
+        set xfer:clobber on;
+        cd "$l_ftp_remote_dir"
+        get "$l_ftp_file"
+EOF
+}
+
 ftp_list() {
     local l_ftp_protocol=$1
     local l_ftp_host=$2
@@ -122,13 +156,14 @@ ftp_list() {
     local l_ftp_user=$4
     local l_ftp_password=$5
     local l_ftp_remote_dir=$6
+    local l_ftp_remote_sort=$7
 
     lftp -c open -e "\
 	set ftps:initial-prot; \
 	set ftp:ssl-force true; \
 	set ftp:ssl-protect-data true; \
 	set ssl:verify-certificate false; \
-	cls $l_ftp_remote_dir; \
+	cls --sort=$l_ftp_remote_sort $l_ftp_remote_dir; \
     " \
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
 }
@@ -227,6 +262,7 @@ check_ftp() {
     local l_ftp_user=$4
     local l_ftp_password=$5
     local l_ftp_remote_dir=$6
+    local l_ftp_remote_sort=$7
 
     if command -v lftp &>/dev/null; then
         echo "checks      : ftp lftp found"
@@ -243,7 +279,7 @@ check_ftp() {
         exit_bad
     fi
 
-    ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" &>/dev/null
+    ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" "$l_ftp_remote_sort" &>/dev/null
     if [ $? -eq 0 ]; then
         echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port"
     else
@@ -312,7 +348,7 @@ backup() {
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$logfile"
     check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" | tee -a "$logfile"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -432,6 +468,84 @@ backup() {
     echo "exec        : uploading log ..." | tee -a "$logfile"
     echo "exec        : uploading $logfile" | tee -a "$logfile"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$logfile"
+
+}
+
+restore() {
+# change to working dir
+    cd "$dst_work_dir" || exit_bad
+    
+    # get ISO 8601 timestamp
+    local timestamp
+    timestamp=$(date +"%Y%m%dT%H%M%SZ")
+    
+    # create log file
+    local logfile
+    logfile="$timestamp".log
+    touch "$logfile"
+
+    echo_banner
+    echo "$timestamp" | tee -a "$logfile"
+    uname -ar | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    # application properties check if arg exist
+    if [ -z "$1" ]; then
+        echo "props       : no argument for external file supplied" | tee -a "$logfile"
+        echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
+    else
+        app_props=$1
+        echo "props file  : $app_props" | tee -a "$logfile"
+        # check if file supplied as cli argument, exists
+        if [ -f "$app_props" ]; then
+            echo 'props file  : found, sourcing ...' | tee -a "$logfile"
+            source "$app_props"
+        else
+            echo "props file  : $app_props does not exist." | tee -a "$logfile"
+            exit_bad
+        fi
+    fi
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    total_time=0
+
+    # check settings sanity
+    local_start="$(date +%s)"
+    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
+    check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
+    #check_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    
+    # get all restore candidates
+    shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer")
+    # filter only *.sha as we'll use them as toc to download
+    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1 | sed 's/\/nextcloud\///g' | sed 's/.sha512//g' )
+    echo "selected $selected"
+    
+    # check if they exist on server (or exit)
+
+    # download 
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".sha512
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".log
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-sql-plain-backup.sql
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-inst-files-backup.tar.gz
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected".nextcloud-data-files-backup.tar.gz
+
+    # validate sha512 sum
+
+    # make sure db does not exist (or exit)
+    # make sure nextcloud installation does not exist (or exit)
+    # make sure nextcloud data files do not exist (or exit)
+    
+    # restore db
+    # restore installation
+    # restore data files
+
 
 }
 
