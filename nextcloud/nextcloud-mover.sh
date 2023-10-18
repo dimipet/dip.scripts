@@ -275,6 +275,13 @@ check_dst_nextcloud() {
 
     check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
 
+    if [ -d "$l_nextcloud_inst_path" ]; then
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists (overwrite ?)"
+        exit_bad
+    else
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist"
+    fi
+
 }
 
 check_ftp() {
