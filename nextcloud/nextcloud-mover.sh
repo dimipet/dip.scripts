@@ -221,7 +221,7 @@ check_postgres() {
     fi
 }
 
-check_nextcloud() {
+check_src_nextcloud() {
     local l_apache_user=$1
     local l_nextcloud_inst_path=$2
     local l_nextcloud_data_path=$3
@@ -349,7 +349,7 @@ backup() {
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$logfile"
-    check_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
+    check_src_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
     check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -515,7 +515,7 @@ restore() {
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
-    #check_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
+    #check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
     check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
