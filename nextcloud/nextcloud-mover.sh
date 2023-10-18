@@ -494,7 +494,7 @@ backup() {
 }
 
 restore() {
-# change to working dir
+    # change to working dir
     cd "$dst_work_dir" || exit_bad
     
     # get ISO 8601 timestamp
