@@ -221,10 +221,20 @@ check_postgres() {
     fi
 }
 
+check_nextcloud() {
+    local l_apache_user=$1
+    local l_nextcloud_inst_path=$2
+    local l_nextcloud_data_path=$3
+
+    
+}
+
 check_src_nextcloud() {
     local l_apache_user=$1
     local l_nextcloud_inst_path=$2
     local l_nextcloud_data_path=$3
+
+    check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
 
     if [ -d "$l_nextcloud_inst_path" ]; then
         echo "checks      : nextcloud installation $l_nextcloud_inst_path exists"
@@ -232,7 +242,7 @@ check_src_nextcloud() {
         echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist"
         exit_bad
     fi
-    
+
     if [ -d "$l_nextcloud_inst_path" ]; then
         echo "checks      : nextcloud data $l_nextcloud_data_path exists"
     else
@@ -255,6 +265,16 @@ check_src_nextcloud() {
         echo "checks      : nextcloud maintenance:mode problem"
         exit_bad
     fi
+
+}
+
+check_dst_nextcloud() {
+    local l_apache_user=$1
+    local l_nextcloud_inst_path=$2
+    local l_nextcloud_data_path=$3
+
+    check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
+
 }
 
 check_ftp() {
@@ -515,7 +535,7 @@ restore() {
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
-    #check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
+    check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
     check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
