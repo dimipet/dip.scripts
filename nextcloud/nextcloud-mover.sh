@@ -243,7 +243,7 @@ check_src_nextcloud() {
         exit_bad
     fi
 
-    if [ -d "$l_nextcloud_inst_path" ]; then
+    if [ -d "$l_nextcloud_data_path" ]; then
         echo "checks      : nextcloud data $l_nextcloud_data_path exists"
     else
         echo "checks      : nextcloud data $l_nextcloud_data_path does not exist"
