@@ -53,9 +53,16 @@ src_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
 src_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
 
 # nextcloud destination system installation and data directory
-# FIXME data directory not used yet
 dst_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
 dst_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
+
+# lftp settings
+ftp_protocol="ftps"
+ftp_host="192.168.1.2"
+ftp_port="990"
+ftp_user="change-this-to-your-username"
+ftp_password="change-this-to-your-password"
+ftp_remote_dir="some-dir/"
 # ftp server will usually have many backups uploaded from source host,
 # execute a listing (such as ls -la) on ftp server and pick the 1st
 # file that shows up in order to download and restore. 
@@ -66,15 +73,8 @@ dst_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
 #   date : will sort backups from newest to oldest 
 # Specifying a specific filename is not supported yet.
 # Listing (ls -la) is case-sensitive
-dst_nextcloud_download_prefer=date
+ftp_sorting_prefer=date
 
-# lftp settings
-ftp_protocol="ftps"
-ftp_host="192.168.1.2"
-ftp_port="990"
-ftp_user="change-this-to-your-username"
-ftp_password="change-this-to-your-password"
-ftp_remote_dir="some-dir/"
 
 # DEFAULT APP SETTINGS END HERE
 # -----------------------------------------------------------------------------
@@ -377,7 +377,7 @@ backup() {
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$logfile"
     check_src_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -543,7 +543,7 @@ restore() {
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
     check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer" | tee -a "$logfile"
+    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -551,7 +551,7 @@ restore() {
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
     
     # get all restore candidates
-    shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$dst_nextcloud_download_prefer")
+    shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
     # filter only *.sha as we'll use them as toc to download
     selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
     selected=${selected/$ftp_remote_dir}
