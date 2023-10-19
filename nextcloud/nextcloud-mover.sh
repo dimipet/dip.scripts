@@ -48,9 +48,19 @@ dst_apache_user="www-data"
 src_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
 src_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
 
-# nextcloud destination system installation and data directory
+# nextcloud destination system installation directory
 dst_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
+# CAUTION: DATA LOSS
+# handle nextcloud installation path on destination, with the following options
+#   skip     : do nothing, no loss
+#   create   : mkdir if it does not exist otherwise rm -rf && mkdir
+#   overwite : in any case untar in path specified
+dst_nextcloud_inst_path_handle="skip"
+# nextcloud destination system data directory
 dst_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
+# CAUTION: DATA LOSS
+# same as above but for data files
+dst_nextcloud_data_path_handle="skip"
 
 # lftp settings
 ftp_protocol="ftps"
@@ -120,6 +130,26 @@ ftp_upload() {
     set net:reconnect-interval-base 5; \
     set xfer:verify true; \
 	put -O $l_ftp_remote_dir $l_ftp_file; \
+    " \
+        -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
+}
+
+ftp_find() {
+    local l_ftp_protocol="$1"
+    local l_ftp_host="$2"
+    local l_ftp_port="$3"
+    local l_ftp_user="$4"
+    local l_ftp_password="$5"
+    local l_ftp_remote_dir="$6"
+    local l_ftp_file="$7"
+    
+    lftp -c open -e "\
+	    set ftps:initial-prot; \
+	    set ftp:ssl-force true; \
+	    set ftp:ssl-protect-data true; \
+	    set ssl:verify-certificate false; \
+        cd $l_ftp_remote_dir; \
+	    find $l_ftp_file; \
     " \
         -u "$l_ftp_user","$l_ftp_password" "$l_ftp_protocol"://"$l_ftp_host":"$l_ftp_port"
 }
@@ -271,17 +301,61 @@ check_src_nextcloud() {
 }
 
 check_dst_nextcloud() {
-    local l_apache_user="$1"
-    local l_nextcloud_inst_path="$2"
-    local l_nextcloud_data_path="$3"
+    local l_log="$1"
+    local l_apache_user="$2"
+    local l_nextcloud_inst_path="$3"
+    local l_nextcloud_data_path="$4"
 
     check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
-
+    
+    # check directory handle sanity
     if [ -d "$l_nextcloud_inst_path" ]; then
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists (overwrite ?)"
-        exit_bad
+        echo "checks      : nextcloud installation exists in $l_nextcloud_inst_path" | tee -a "$l_log"
+        case "$dst_nextcloud_inst_path_handle" in
+            skip)
+                echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will not RESTORE a backup to $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will SKIP everyting"
+                ;;
+            create)
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud INSTALLATION files"
+                echo "checks      : nextcloud-mover will DELETE your $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will CREATE path $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to $l_nextcloud_inst_path"
+                ;;
+            overwrite)
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud INSTALLATION files"
+                echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to/and OVERWITE $l_nextcloud_inst_path"
+                ;;
+            *)
+                echo "checks      : nextcloud-mover uknown option found: $dst_nextcloud_inst_path_handle"
+                exit_bad
+                ;;
+        esac
     else
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist"
+        echo "checks      : nextcloud installation does not exist in $l_nextcloud_inst_path" | tee -a "$l_log"
+        case "$dst_nextcloud_inst_path_handle" in
+            skip)
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will not RESTORE a backup to $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will SKIP everyting"
+                ;;
+            create)
+                echo "checks      : nextcloud-mover will CREATE path $l_nextcloud_inst_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to $l_nextcloud_inst_path"
+                ;;
+            overwrite)
+                echo "checks      : nextcloud-mover cannot OVERWITE path $l_nextcloud_inst_path that does not exist"
+                exit_bad
+                ;;
+            *)
+                echo "checks      : nextcloud-mover uknown option found: $dst_nextcloud_inst_path_handle"
+                exit_bad
+                ;;
+        esac
     fi
 
 }
@@ -348,7 +422,6 @@ backup() {
         cd "$src_work_dir" || exit_bad
         touch "$logfile"
     fi
-
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # create sha512 file
@@ -505,73 +578,150 @@ backup() {
 }
 
 restore() {
-    # # change to working dir
-    # cd "$dst_work_dir" || exit_bad
-    
     # get ISO 8601 timestamp
     local timestamp
     timestamp=$(date +"%Y%m%dT%H%M%SZ")
     
-    # # create log file
-    # local logfile
-    # logfile="$timestamp"."$restore_log_suffix"
-    # touch "$logfile"
+    # declare log filename
+    local logfile
+    logfile="$timestamp"."$restore_log_suffix"
 
-    # echo_banner
-    # echo "$timestamp" | tee -a "$logfile"
-    # uname -ar | tee -a "$logfile"
-    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    local app_props
 
-    # # application properties check if arg exist
-    # if [ -z "$1" ]; then
-    #     echo "props       : no argument for external file supplied" | tee -a "$logfile"
-    #     echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
-    # else
-    #     app_props=$1
-    #     echo "props file  : $app_props" | tee -a "$logfile"
-    #     # check if file supplied as cli argument, exists
-    #     if [ -f "$app_props" ]; then
-    #         echo 'props file  : found, sourcing ...' | tee -a "$logfile"
-    #         source "$app_props"
-    #     else
-    #         echo "props file  : $app_props does not exist." | tee -a "$logfile"
-    #         exit_bad
-    #     fi
-    # fi
-    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    # application properties check arg and if file exists
+    if [ -n "$1" -a -f "$1" ]; then
+        app_props="$1"
+        source "$app_props"
+        # change to working dir
+        cd "$dst_work_dir" || exit_bad
+        touch "$logfile"
+        echo "$timestamp" | tee -a "$logfile"
+        uname -ar | tee -a "$logfile"
+        echo "props file  : $app_props" | tee -a "$logfile"
+        echo 'props file  : found & sourced' | tee -a "$logfile"
+    else
+        echo "props       : no argument for external file supplied" | tee -a "$logfile"
+        echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
+        cd "$src_work_dir" || exit_bad
+        touch "$logfile"
+    fi
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    # total_time=0
 
-    # # check settings sanity
-    # local_start="$(date +%s)"
-    # echo "checks      : starting to check settings sanity" | tee -a "$logfile"
-    # check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
-    # check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
-    # check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
-    # local_end="$(date +%s)"
-    # local_exec_time="$((local_end - local_start))"
-    # total_time="$((total_time + local_exec_time))"
-    # echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
-    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    # find sha512 file
+    local sha512file
+    # sha512file="$timestamp"."$sha512_filename_suffix"
+    # touch "$sha512file"
+
+    # find pg_dump filename
+    local pg_dump_file
+    # pg_dump_file="$timestamp"."$pg_dump_filename_suffix"
+
+    # find nextcloud installation backup filename
+    local nextcloud_inst_bu_file
+    # nextcloud_inst_bu_file="$timestamp"."$nextcloud_inst_filename_suffix"
+
+    # find nextcloud data backup file
+    local nextcloud_data_bu_file
+    # nextcloud_data_bu_file="$timestamp"."$nextcloud_data_filename_suffix"
+
+    # starter time counters
+    local total_time
+    local local_start
+    local local_end
+    local local_exec_time
+    total_time=0
+    local_start=0
+    local_end=0
+    local_exec_time=0
+
+    # check settings sanity
+    local_start="$(date +%s)"
+    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
+    check_postgres "$logfile" "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password"
+    check_dst_nextcloud "$logfile" "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path"
+    check_ftp "$logfile" "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    total_time=0
+
+    if [ "$dst_nextcloud_inst_path_handle" == "skip" -a "$dst_nextcloud_data_path_handle" == "skip" ]; then
+        echo "nextcloud-mover : skipping all"
+        exit_bad
+    fi
+	
+    # get all restore candidates
+    shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
+    # filter only *.sha as we'll use them as toc to download
+    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
+    selected=${selected/$ftp_remote_dir}
+    selected=${selected/.$sha512_filename_suffix}
+    echo "selected $selected"
+
+# set -x
+# set +x
     
-    # # get all restore candidates
-    # shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
-    # # filter only *.sha as we'll use them as toc to download
-    # selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
-    # selected=${selected/$ftp_remote_dir}
-    # selected=${selected/.$sha512_filename_suffix}
-    # echo "selected $selected"
-    
-    # # check if they exist on server (or exit)
+    # check if they exist on server (or exit)
+    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : file $selected"."$sha512_filename_suffix not exists in ftp host" 
+        exit_bad
+    else
+        echo "nextcloud-mover : file $selected"."$sha512_filename_suffix exists in ftp host"
+    fi
 
-    # # download 
-    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
-    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
-    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
-    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
-    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
+    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : file $selected"."$backup_log_suffix not exists in ftp host" 
+        exit_bad
+    else
+        echo "nextcloud-mover : file $selected"."$backup_log_suffix exists in ftp host"
+    fi
+
+    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : file $selected"."$pg_dump_filename_suffix not exists in ftp host" 
+        exit_bad
+    else
+        echo "nextcloud-mover : file $selected"."$pg_dump_filename_suffix exists in ftp host"
+    fi
+
+    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : file $selected"."$nextcloud_inst_filename_suffix not exists in ftp host" 
+        exit_bad
+    else
+        echo "nextcloud-mover : file $selected"."$nextcloud_inst_filename_suffix exists in ftp host"
+    fi
+
+    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : file $selected"."$nextcloud_data_filename_suffix not exists in ftp host" 
+        exit_bad
+    else
+        echo "nextcloud-mover : file $selected"."$nextcloud_data_filename_suffix exists in ftp host"
+    fi
+
+    # download 
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
+    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
 
     # validate sha512 sum
+    sha512sum -c "$selected"."$sha512_filename_suffix"
+    if [ $? -ne 0 ]; then 
+        echo "nextcloud-mover : sha512 checksums failed" 
+        exit_bad
+    else
+        echo "nextcloud-mover : sha512 checksums passed"
+    fi
 
     # make sure db does not exist (or exit)
     # make sure nextcloud installation does not exist (or exit)
