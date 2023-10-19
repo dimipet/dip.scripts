@@ -1,60 +1,56 @@
 #!/bin/bash
 
 # -----------------------------------------------------------------------------
-# DEFAULT APP SETTINGS
+# DEFAULT APP GLOBAL SETTINGS
 
 # app artifacts filename suffixes
-backup_log_suffix=backup.log
-restore_log_suffix=restore.log
-# tar.gz files of db dumb, nextcloud installation files, netxcloud data files
-# are going to be hashed using sha512 and their sha512 checksum will be written
-# in the following file
-sha512_filename_suffix=hash.sha512
+backup_log_suffix="backup.log"
+restore_log_suffix="restore.log"
+# sha512 checksums of files produced
+sha512_filename_suffix="hash.sha512"
 # backup db and restore from files using this suffix 
-pg_dump_filename_suffix=nextcloud-sql-plain-backup.sql
+pg_dump_filename_suffix="nextcloud-sql-plain-backup.sql"
 # nextcloud backup files suffix: seperate for install and data
-nextcloud_inst_filename_suffix=nextcloud-inst-files-backup.tar.gz
-nextcloud_data_filename_suffix=nextcloud-data-files-backup.tar.gz
+nextcloud_inst_filename_suffix="nextcloud-inst-files-backup.tar.gz"
+nextcloud_data_filename_suffix="nextcloud-data-files-backup.tar.gz"
+# source system directory where the backup() function will produce backups, logs, shas
+src_work_dir="./"
+# destination system directory where the backup() function will produce backups, logs, shas
+dst_work_dir="./"
+
+# -----------------------------------------------------------------------------
+# USER APP GLOBAL SETTINGS
 
 # postgres server settings
-src_pg_user=postgres
-dst_pg_user=postgres
+src_pg_user="postgres"
+dst_pg_user="postgres"
 
 # postgres source DB settings
-src_db_host=localhost
-src_db_port=5432
-src_db_name=nextcloud
-src_db_user=postgres
-src_db_password=
+src_db_host="localhost"
+src_db_port="5432"
+src_db_name="nextcloud"
+src_db_user="postgres"
+src_db_password=""
 # postgres destination DB settings
-dst_db_host=localhost
-dst_db_port=5432
-dst_db_name=nextcloud
-dst_db_user=postgres
-dst_db_password=
-
-# source system directory where the backup() function will use to output/place
-# the postges database dumb, nextcloud files, logs etc
-src_work_dir=./
-# destination system directory where the restore() function will download files 
-# from the ftp and then restore the postgres database dumb, nextcloud files 
-# create restore process logs etc
-dst_work_dir=./
-
+dst_db_host="localhost"
+dst_db_port="5432"
+dst_db_name="nextcloud"
+dst_db_user="postgres"
+dst_db_password=""
 
 # apache settings
 # used for sudo -u user occ maintenance:mode
-src_apache_user=www-data
-dst_apache_user=www-data
+src_apache_user="www-data"
+dst_apache_user="www-data"
 
 # nextcloud source system installation and data directory
 # FIXME data directory not used yet
-src_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
-src_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
+src_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
+src_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
 
 # nextcloud destination system installation and data directory
-dst_nextcloud_inst_path=/some/path/to/your/www/nextcloud/installation
-dst_nextcloud_data_path=/some/path/to/your/nextcloud/data/directory
+dst_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
+dst_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
 
 # lftp settings
 ftp_protocol="ftps"
@@ -73,7 +69,7 @@ ftp_remote_dir="some-dir/"
 #   date : will sort backups from newest to oldest 
 # Specifying a specific filename is not supported yet.
 # Listing (ls -la) is case-sensitive
-ftp_sorting_prefer=date
+ftp_sorting_prefer="date"
 
 
 # DEFAULT APP SETTINGS END HERE
@@ -106,13 +102,13 @@ echo_usage() {
 }
 
 ftp_upload() {
-    local l_ftp_protocol=$1
-    local l_ftp_host=$2
-    local l_ftp_port=$3
-    local l_ftp_user=$4
-    local l_ftp_password=$5
-    local l_ftp_remote_dir=$6
-    local l_ftp_file=$7
+    local l_ftp_protocol="$1"
+    local l_ftp_host="$2"
+    local l_ftp_port="$3"
+    local l_ftp_user="$4"
+    local l_ftp_password="$5"
+    local l_ftp_remote_dir="$6"
+    local l_ftp_file="$7"
 
     lftp -c open -e "\
 	set ftps:initial-prot; \
@@ -129,13 +125,13 @@ ftp_upload() {
 }
 
 ftp_download() {
-    local l_ftp_protocol=$1
-    local l_ftp_host=$2
-    local l_ftp_port=$3
-    local l_ftp_user=$4
-    local l_ftp_password=$5
-    local l_ftp_remote_dir=$6
-    local l_ftp_file=$7
+    local l_ftp_protocol="$1"
+    local l_ftp_host="$2"
+    local l_ftp_port="$3"
+    local l_ftp_user="$4"
+    local l_ftp_password="$5"
+    local l_ftp_remote_dir="$6"
+    local l_ftp_file="$7"
     
     lftp -u "$l_ftp_user","$l_ftp_password" "$l_ftp_host" <<EOF
         set ftps:initial-prot;
@@ -152,13 +148,13 @@ EOF
 }
 
 ftp_list() {
-    local l_ftp_protocol=$1
-    local l_ftp_host=$2
-    local l_ftp_port=$3
-    local l_ftp_user=$4
-    local l_ftp_password=$5
-    local l_ftp_remote_dir=$6
-    local l_ftp_remote_sort=$7
+    local l_ftp_protocol="$1"
+    local l_ftp_host="$2"
+    local l_ftp_port="$3"
+    local l_ftp_user="$4"
+    local l_ftp_password="$5"
+    local l_ftp_remote_dir="$6"
+    local l_ftp_remote_sort="$7"
 
     lftp -c open -e "\
 	set ftps:initial-prot; \
@@ -176,102 +172,108 @@ exit_bad() {
 }
 
 check_postgres() {
-    local l_pg_user=$1
-    local l_db_host=$2
-    local l_db_port=$3
-    local l_db_name=$4
-    local l_db_user=$5
-    local l_db_password=$6
+    local l_log="$1"
+    local l_pg_user="$2"
+    local l_db_host="$3"
+    local l_db_port="$4"
+    local l_db_name="$5"
+    local l_db_user="$6"
+    local l_db_password="$7"
 
     if command -v pg_dump &>/dev/null; then
-        echo "checks      : postgres pg_dump found"
+        echo "checks      : postgres pg_dump found" | tee -a "$l_log"
     else
-        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?"
+        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?" | tee -a "$l_log"
         exit_bad
     fi
 
-    if lsof -Pi :"$l_db_port" -sTCP:LISTEN -t >/dev/null; then
-        echo "checks      : postgres listening on port $l_db_port"
-    else
-        echo "checks      : postgres not listening port $l_db_port"
-        exit_bad
-    fi
+    # if lsof -Pi :"$l_db_port" -sTCP:LISTEN -t >/dev/null; then
+    #     echo "checks      : postgres listening on port $l_db_port" | tee -a "$l_log"
+    # else
+    #     echo "checks      : postgres not listening port $l_db_port" | tee -a "$l_log"
+    #     exit_bad
+    # fi
 
     # make sure specific ip/host and specific port is accepting connections
     pg_isready -h "$l_db_host" -p "$l_db_port" | grep 'accepting connections' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : postgres accepting connections"
+        echo "checks      : postgres accepting connections" | tee -a "$l_log"
     else
-        echo "checks      : postgres not accepting connections"
+        # keep the error in log file
+        pg_isready -h "$l_db_host" -p "$l_db_port" > /dev/null 2> >(tee -a "$l_log")
+        echo "checks      : postgres not accepting connections" | tee -a "$l_log"
         exit_bad
     fi
 
     # make sure that the specific database user can connect to specific host:port/database
     psql postgresql://"$l_db_user":"$l_db_password"@"$l_db_host":"$l_db_port"/"$l_db_name" -lqt | cut -d \| -f 1 | grep -qw "$l_db_name"
     if [ $? -eq 0 ]; then
-        echo "checks      : postgres database $l_db_user exists"
-        echo "checks      : postgres database $l_db_user can connect to $l_db_host:$l_db_port/$l_db_name"
-        echo "checks      : postgres database $l_db_name exists"
+        echo "checks      : postgres database $l_db_user exists" | tee -a "$l_log"
+        echo "checks      : postgres database $l_db_user can connect to $l_db_host:$l_db_port/$l_db_name" | tee -a "$l_log"
+        echo "checks      : postgres database $l_db_name exists" | tee -a "$l_log"
     else
-        echo "checks      : postgres something of the following went wrong :"
-        echo "checks      : postgres database $l_db_user does not exist OR ..."
-        echo "checks      : postgres database $l_db_user can not connect to $l_db_host:$l_db_port OR ..."
-        echo "checks      : postgres database $l_db_name does not exist"
+        # keep the error in log file
+        psql postgresql://"$l_db_user":"$l_db_password"@"$l_db_host":"$l_db_port"/"$l_db_name" -lqt > /dev/null 2> >(tee -a "$l_log")
+        echo "checks      : postgres something of the following went wrong :" | tee -a "$l_log"
+        echo "checks      : postgres database $l_db_user does not exist OR ..." | tee -a "$l_log"
+        echo "checks      : postgres database $l_db_user can not connect to $l_db_host:$l_db_port OR ..." | tee -a "$l_log"
+        echo "checks      : postgres database $l_db_name does not exist" | tee -a "$l_log"
         exit_bad
     fi
 }
 
 check_nextcloud() {
-    local l_apache_user=$1
-    local l_nextcloud_inst_path=$2
-    local l_nextcloud_data_path=$3
-
+    local l_log="$1"
+    local l_apache_user="$2"
+    local l_nextcloud_inst_path="$3"
+    local l_nextcloud_data_path="$4"
     
 }
 
 check_src_nextcloud() {
-    local l_apache_user=$1
-    local l_nextcloud_inst_path=$2
-    local l_nextcloud_data_path=$3
+    local l_log="$1"
+    local l_apache_user="$2"
+    local l_nextcloud_inst_path="$3"
+    local l_nextcloud_data_path="$4"
 
-    check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
+    check_nextcloud "$l_log" "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
 
     if [ -d "$l_nextcloud_inst_path" ]; then
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists"
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path exists" | tee -a "$l_log"
     else
-        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist"
+        echo "checks      : nextcloud installation $l_nextcloud_inst_path does not exist" | tee -a "$l_log"
         exit_bad
     fi
 
     if [ -d "$l_nextcloud_data_path" ]; then
-        echo "checks      : nextcloud data $l_nextcloud_data_path exists"
+        echo "checks      : nextcloud data $l_nextcloud_data_path exists" | tee -a "$l_log"
     else
-        echo "checks      : nextcloud data $l_nextcloud_data_path does not exist"
+        echo "checks      : nextcloud data $l_nextcloud_data_path does not exist" | tee -a "$l_log"
         exit_bad
     fi
 
     sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ status | grep 'installed: true' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : nextcloud $l_nextcloud_inst_path/occ exists"
+        echo "checks      : nextcloud $l_nextcloud_inst_path/occ exists" | tee -a "$l_log"
     else
-        echo "checks      : nextcloud $l_nextcloud_inst_path/occ does not exist"
+        echo "checks      : nextcloud $l_nextcloud_inst_path/occ does not exist" | tee -a "$l_log"
         exit_bad
     fi
 
     sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode | grep -E 'enabled|disabled' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : nextcloud $(sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode)"
+        echo "checks      : nextcloud $(sudo -u "$l_apache_user" php "$l_nextcloud_inst_path"/occ maintenance:mode)" | tee -a "$l_log"
     else
-        echo "checks      : nextcloud maintenance:mode problem"
+        echo "checks      : nextcloud maintenance:mode problem" | tee -a "$l_log"
         exit_bad
     fi
 
 }
 
 check_dst_nextcloud() {
-    local l_apache_user=$1
-    local l_nextcloud_inst_path=$2
-    local l_nextcloud_data_path=$3
+    local l_apache_user="$1"
+    local l_nextcloud_inst_path="$2"
+    local l_nextcloud_data_path="$3"
 
     check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
 
@@ -285,72 +287,68 @@ check_dst_nextcloud() {
 }
 
 check_ftp() {
-    local l_ftp_protocol=$1
-    local l_ftp_host=$2
-    local l_ftp_port=$3
-    local l_ftp_user=$4
-    local l_ftp_password=$5
-    local l_ftp_remote_dir=$6
-    local l_ftp_remote_sort=$7
+    local l_log="$1"
+    local l_ftp_protocol="$2"
+    local l_ftp_host="$3"
+    local l_ftp_port="$4"
+    local l_ftp_user="$5"
+    local l_ftp_password="$6"
+    local l_ftp_remote_dir="$7"
+    local l_ftp_remote_sort="$8"
 
     if command -v lftp &>/dev/null; then
-        echo "checks      : ftp lftp found"
+        echo "checks      : ftp lftp found" | tee -a "$l_log"
     else
-        echo "checks      : ftp lftp could not be found - please install it"
+        echo "checks      : ftp lftp could not be found - please install it" | tee -a "$l_log"
         exit_bad
     fi
 
     timeout 3 bash -c "cat < /dev/null > /dev/tcp/$l_ftp_host/$l_ftp_port"
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp remote host $l_ftp_host is accepting requests on port $l_ftp_port"
+        echo "checks      : ftp remote host $l_ftp_host is accepting requests on port $l_ftp_port" | tee -a "$l_log"
     else
-        echo "checks      : ftp remote host $l_ftp_host is not accepting requests on port $l_ftp_port"
+        echo "checks      : ftp remote host $l_ftp_host is not accepting requests on port $l_ftp_port" | tee -a "$l_log"
         exit_bad
     fi
 
     ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" "$l_ftp_remote_sort" &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port"
+        echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port" | tee -a "$l_log"
     else
-        echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port"
+        echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port" | tee -a "$l_log"
         exit_bad
     fi
 }
 
 backup() {
-    # change to working dir
-    cd "$src_work_dir" || exit_bad
-    
     # get ISO 8601 timestamp
     local timestamp
     timestamp=$(date +"%Y%m%dT%H%M%SZ")
     
-    # create log file
+    # declare log filename
     local logfile
     logfile="$timestamp"."$backup_log_suffix"
-    touch "$logfile"
 
-    echo_banner
-    echo "$timestamp" | tee -a "$logfile"
-    uname -ar | tee -a "$logfile"
-    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    local app_props
 
-    # application properties check if arg exist
-    if [ -z "$1" ]; then
+    # application properties check arg and if file exists
+    if [ -n "$1" ] && [ -f "$1" ]; then
+        app_props="$1"
+        source "$app_props"
+        # change to working dir
+        cd "$src_work_dir" || exit_bad
+        touch "$logfile"
+        echo "$timestamp" | tee -a "$logfile"
+        uname -ar | tee -a "$logfile"
+        echo "props file  : $app_props" | tee -a "$logfile"
+        echo 'props file  : found & sourced' | tee -a "$logfile"
+    else
         echo "props       : no argument for external file supplied" | tee -a "$logfile"
         echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
-    else
-        app_props=$1
-        echo "props file  : $app_props" | tee -a "$logfile"
-        # check if file supplied as cli argument, exists
-        if [ -f "$app_props" ]; then
-            echo 'props file  : found, sourcing ...' | tee -a "$logfile"
-            source "$app_props"
-        else
-            echo "props file  : $app_props does not exist." | tee -a "$logfile"
-            exit_bad
-        fi
+        cd "$src_work_dir" || exit_bad
+        touch "$logfile"
     fi
+
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # create sha512 file
@@ -358,26 +356,34 @@ backup() {
     sha512file="$timestamp"."$sha512_filename_suffix"
     touch "$sha512file"
 
-    # create pg_dump file
+    # declare pg_dump filename
     local pg_dump_file
     pg_dump_file="$timestamp"."$pg_dump_filename_suffix"
 
-    # create nextcloud installation backup file
+    # declare nextcloud installation backup filename
     local nextcloud_inst_bu_file
     nextcloud_inst_bu_file="$timestamp"."$nextcloud_inst_filename_suffix"
 
-    # create nextcloud data backup file
+    # declare nextcloud data backup file
     local nextcloud_data_bu_file
     nextcloud_data_bu_file="$timestamp"."$nextcloud_data_filename_suffix"
 
+    # starter time counters
+    local total_time
+    local local_start
+    local local_end
+    local local_exec_time
     total_time=0
+    local_start=0
+    local_end=0
+    local_exec_time=0
 
     # check settings sanity
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
-    check_postgres "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password" | tee -a "$logfile"
-    check_src_nextcloud "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path" | tee -a "$logfile"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
+    check_postgres "$logfile" "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
+    check_src_nextcloud "$logfile" "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path"
+    check_ftp "$logfile" "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -386,11 +392,9 @@ backup() {
     
     # get running, script and working directories and files
     local_start="$(date +%s)"
-    running_dir="$(pwd)"
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-    echo "running dir : $running_dir" | tee -a "$logfile"
-    echo "working dir : $src_work_dir" | tee -a "$logfile"
-    echo "script dir  : $script_dir" | tee -a "$logfile"
+    echo "script dir          : $script_dir" | tee -a "$logfile"
+    echo "working dir         : $src_work_dir" | tee -a "$logfile"
     echo "log file            : $logfile" | tee -a "$logfile"
     echo "sha512 file         : $sha512file" | tee -a "$logfile"
     echo "pgdump file         : $pg_dump_file" | tee -a "$logfile"
@@ -412,7 +416,7 @@ backup() {
     echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    # dump db
+    # # dump db
     local_start="$(date +%s)"
     echo "exec        : postgres pg_dump" | tee -a "$logfile"
     echo "exec        : pg_dump sql output is redirected to $timestamp.$pg_dump_filename_suffix" | tee -a "$logfile"
@@ -501,71 +505,71 @@ backup() {
 }
 
 restore() {
-    # change to working dir
-    cd "$dst_work_dir" || exit_bad
+    # # change to working dir
+    # cd "$dst_work_dir" || exit_bad
     
     # get ISO 8601 timestamp
     local timestamp
     timestamp=$(date +"%Y%m%dT%H%M%SZ")
     
-    # create log file
-    local logfile
-    logfile="$timestamp"."$restore_log_suffix"
-    touch "$logfile"
+    # # create log file
+    # local logfile
+    # logfile="$timestamp"."$restore_log_suffix"
+    # touch "$logfile"
 
-    echo_banner
-    echo "$timestamp" | tee -a "$logfile"
-    uname -ar | tee -a "$logfile"
-    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    # echo_banner
+    # echo "$timestamp" | tee -a "$logfile"
+    # uname -ar | tee -a "$logfile"
+    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    # application properties check if arg exist
-    if [ -z "$1" ]; then
-        echo "props       : no argument for external file supplied" | tee -a "$logfile"
-        echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
-    else
-        app_props=$1
-        echo "props file  : $app_props" | tee -a "$logfile"
-        # check if file supplied as cli argument, exists
-        if [ -f "$app_props" ]; then
-            echo 'props file  : found, sourcing ...' | tee -a "$logfile"
-            source "$app_props"
-        else
-            echo "props file  : $app_props does not exist." | tee -a "$logfile"
-            exit_bad
-        fi
-    fi
-    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    # # application properties check if arg exist
+    # if [ -z "$1" ]; then
+    #     echo "props       : no argument for external file supplied" | tee -a "$logfile"
+    #     echo "props       : using DEFAULT APP SETTINGS from this script" | tee -a "$logfile"
+    # else
+    #     app_props=$1
+    #     echo "props file  : $app_props" | tee -a "$logfile"
+    #     # check if file supplied as cli argument, exists
+    #     if [ -f "$app_props" ]; then
+    #         echo 'props file  : found, sourcing ...' | tee -a "$logfile"
+    #         source "$app_props"
+    #     else
+    #         echo "props file  : $app_props does not exist." | tee -a "$logfile"
+    #         exit_bad
+    #     fi
+    # fi
+    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    total_time=0
+    # total_time=0
 
-    # check settings sanity
-    local_start="$(date +%s)"
-    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
-    check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
-    check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
-    check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
-    local_end="$(date +%s)"
-    local_exec_time="$((local_end - local_start))"
-    total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
-    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+    # # check settings sanity
+    # local_start="$(date +%s)"
+    # echo "checks      : starting to check settings sanity" | tee -a "$logfile"
+    # check_postgres "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" | tee -a "$logfile"
+    # check_dst_nextcloud "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path" | tee -a "$logfile"
+    # check_ftp "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer" | tee -a "$logfile"
+    # local_end="$(date +%s)"
+    # local_exec_time="$((local_end - local_start))"
+    # total_time="$((total_time + local_exec_time))"
+    # echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    # echo '-------------------------------------------------------------------------' | tee -a "$logfile"
     
-    # get all restore candidates
-    shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
-    # filter only *.sha as we'll use them as toc to download
-    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
-    selected=${selected/$ftp_remote_dir}
-    selected=${selected/.$sha512_filename_suffix}
-    echo "selected $selected"
+    # # get all restore candidates
+    # shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
+    # # filter only *.sha as we'll use them as toc to download
+    # selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
+    # selected=${selected/$ftp_remote_dir}
+    # selected=${selected/.$sha512_filename_suffix}
+    # echo "selected $selected"
     
-    # check if they exist on server (or exit)
+    # # check if they exist on server (or exit)
 
-    # download 
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
+    # # download 
+    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
+    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
+    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
+    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
+    # ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
 
     # validate sha512 sum
 
@@ -579,6 +583,8 @@ restore() {
 
 
 }
+
+echo_banner
 
 # parse arguments
 while getopts p:a: flag; do
