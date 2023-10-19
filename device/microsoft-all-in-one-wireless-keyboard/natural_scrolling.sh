@@ -17,21 +17,21 @@ if (( $# < 2 )); then
 	exit 1
 fi
 
-deviceName=$1
-value=$2
+deviceName="$1"
+value="$2"
 
 deviceIds=$(xinput --list | grep "$deviceName" | grep 'pointer' |sed 's/^.*id=\([0-9]*\)[ \t].*$/\1/')
 #echo "$deviceIds"
 
 for deviceId in $deviceIds
 do
-	echo "showing current values for device ID : " $deviceId
-	xinput --list-props $deviceId | grep "libinput Natural Scrolling Enabled"
+	echo "showing current values for device ID : $deviceId"
+	xinput --list-props "$deviceId" | grep "libinput Natural Scrolling Enabled"
 	
-	echo "setting for device ID " $deviceId " new value " $value 
-	xinput set-prop $deviceId "libinput Natural Scrolling Enabled" $value
+	echo "setting for device ID $deviceId new value $value"
+	xinput set-prop "$deviceId" "libinput Natural Scrolling Enabled" "$value"
 	
-	echo "showing current values for device ID : " $deviceId
-        xinput --list-props $deviceId | grep "libinput Natural Scrolling Enabled"
+	echo "showing current values for device ID : $deviceId"
+        xinput --list-props "$deviceId" | grep "libinput Natural Scrolling Enabled"
 done
 
