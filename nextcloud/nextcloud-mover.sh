@@ -557,7 +557,7 @@ backup() {
     local_start="$(date +%s)"
     echo "exec        : uploading files ..." | tee -a "$logfile"
     
-    # echo "exec        : uploading pg_dump_file" | tee -a "$logfile"
+    echo "exec        : uploading pg_dump_file" | tee -a "$logfile"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$pg_dump_file"
     if [ $? -ne 0 ]; then exit_bad; fi 
     
