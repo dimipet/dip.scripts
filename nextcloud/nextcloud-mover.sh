@@ -489,7 +489,7 @@ backup() {
     echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    # # dump db
+    # dump db
     local_start="$(date +%s)"
     echo "exec        : postgres pg_dump" | tee -a "$logfile"
     echo "exec        : pg_dump sql output is redirected to $timestamp.$pg_dump_filename_suffix" | tee -a "$logfile"
@@ -510,9 +510,19 @@ backup() {
     # backup nextcloud installation files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud installation files" 2>&1 | tee -a "$logfile"
-    tar -c --exclude="$src_nextcloud_data_path" \
-        -vpzf "$nextcloud_inst_bu_file" \
-        "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+    ## compute data path to exclude it from inst files tar : 
+    ## check to see if data path is (or isn't) inside inst path
+    local data_path
+    if [[ "$src_nextcloud_data_path" = "$src_nextcloud_inst_path"* ]]; then
+        echo "exec        : tar data path is in nextcloud installation path" 2>&1 | tee -a "$logfile"
+        data_path=${src_nextcloud_data_path#"$src_nextcloud_inst_path"} #remove leading inst path - leave only data
+        data_path=${data_path#/} #remove leading slash /
+    else
+        echo "exec        : tar data path is NOT in nextcloud installation path" 2>&1 | tee -a "$logfile"
+        data_path="$src_nextcloud_data_path"
+    fi
+    tar --exclude="$data_path" -cpvzf "$nextcloud_inst_bu_file" \
+        -C "$src_nextcloud_inst_path" . 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$nextcloud_inst_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
@@ -524,7 +534,7 @@ backup() {
     # backup nextcloud data files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
-    tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+    tar -cvpzf "$nextcloud_data_bu_file" -C "$src_nextcloud_data_path" . 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$nextcloud_data_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
@@ -547,7 +557,7 @@ backup() {
     local_start="$(date +%s)"
     echo "exec        : uploading files ..." | tee -a "$logfile"
     
-    echo "exec        : uploading pg_dump_file" | tee -a "$logfile"
+    # echo "exec        : uploading pg_dump_file" | tee -a "$logfile"
     ftp_upload "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$pg_dump_file"
     if [ $? -ne 0 ]; then exit_bad; fi 
     
