@@ -476,7 +476,7 @@ backup() {
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
-    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo "exec time           : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
     # set maintenance:mode
@@ -510,19 +510,9 @@ backup() {
     # backup nextcloud installation files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud installation files" 2>&1 | tee -a "$logfile"
-    ## compute data path to exclude it from inst files tar : 
-    ## check to see if data path is (or isn't) inside inst path
-    local data_path
-    if [[ "$src_nextcloud_data_path" = "$src_nextcloud_inst_path"* ]]; then
-        echo "exec        : tar data path is in nextcloud installation path" 2>&1 | tee -a "$logfile"
-        data_path=${src_nextcloud_data_path#"$src_nextcloud_inst_path"} #remove leading inst path - leave only data
-        data_path=${data_path#/} #remove leading slash /
-    else
-        echo "exec        : tar data path is NOT in nextcloud installation path" 2>&1 | tee -a "$logfile"
-        data_path="$src_nextcloud_data_path"
-    fi
-    tar --exclude="$data_path" -cpvzf "$nextcloud_inst_bu_file" \
-        -C "$src_nextcloud_inst_path" . 2>&1 | tee -a "$logfile"
+    tar -c --exclude="$src_nextcloud_data_path" \
+        -vpzf "$nextcloud_inst_bu_file" \
+        "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$nextcloud_inst_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
@@ -534,7 +524,7 @@ backup() {
     # backup nextcloud data files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
-    tar -cvpzf "$nextcloud_data_bu_file" -C "$src_nextcloud_data_path" . 2>&1 | tee -a "$logfile"
+    tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$nextcloud_data_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
@@ -617,24 +607,11 @@ restore() {
     fi
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-
-
-    # find sha512 file
     local sha512file
-    # sha512file="$timestamp"."$sha512_filename_suffix"
-    # touch "$sha512file"
-
-    # find pg_dump filename
+    local backup_logfile
     local pg_dump_file
-    # pg_dump_file="$timestamp"."$pg_dump_filename_suffix"
-
-    # find nextcloud installation backup filename
     local nextcloud_inst_bu_file
-    # nextcloud_inst_bu_file="$timestamp"."$nextcloud_inst_filename_suffix"
-
-    # find nextcloud data backup file
     local nextcloud_data_bu_file
-    # nextcloud_data_bu_file="$timestamp"."$nextcloud_data_filename_suffix"
 
     # starter time counters
     local total_time
@@ -661,85 +638,103 @@ restore() {
     total_time=0
 
     if [ "$dst_nextcloud_inst_path_handle" == "skip" -a "$dst_nextcloud_data_path_handle" == "skip" ]; then
-        echo "nextcloud-mover : skipping all"
+        echo "nextcloud-mover : skipping all" | tee -a "$logfile"
         exit_bad
+    else
+        echo "nextcloud-mover : not skipping" | tee -a "$logfile"
     fi
-	
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    echo "select      : select files to download" | tee -a "$logfile"
     # get all restore candidates
     shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
     # filter only *.sha as we'll use them as toc to download
     selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
+    # remove leading path of ftp_remote_dir
     selected=${selected/$ftp_remote_dir}
+    # remove trailing '.hash.sha512' suffix
     selected=${selected/.$sha512_filename_suffix}
-    echo "selected $selected"
+    # files to download 
+    sha512file="$selected"."$sha512_filename_suffix"
+    backup_logfile="$selected"."$backup_log_suffix"
+    pg_dump_file="$selected"."$pg_dump_filename_suffix"
+    nextcloud_inst_bu_file="$selected"."$nextcloud_inst_filename_suffix"
+    nextcloud_data_bu_file="$selected"."$nextcloud_data_filename_suffix"
+    # treat files to download as an array
+    # 1st always sha512 - will be used later as index of other files
+    # 2nd always log file
+    # 3rd db dump
+    # 4th nextcloud installation files tar.gz
+    # 5th nextcloud data files tar.gz
+    files=("$sha512file" "$backup_logfile" "$pg_dump_file" "$nextcloud_inst_bu_file" "$nextcloud_data_bu_file")
+    for f in "${!files[@]}"; do
+        echo "select      : [$f] ---> ${files[$f]}" | tee -a "$logfile"
+    done
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    echo "checks      : check if selected files exist on server (or exit)" | tee -a "$logfile"
+    for f in "${!files[@]}"; do
+        echo ""
+        ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "${files[$f]}"
+        if [ $? -ne 0 ]; then 
+            echo "checks      : [$f] ---> ${files[$f]} not exists in ftp host" | tee -a "$logfile"
+            exit_bad
+        else
+            echo "checks      : [$f] ---> ${files[$f]} exists in ftp host" | tee -a "$logfile"
+        fi
+    done
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    echo "download    : download selected files " | tee -a "$logfile"
+    for f in "${!files[@]}"; do
+        echo ""
+        echo "download    : [$f] ---> ${files[$f]}" | tee -a "$logfile"
+        # always download and overwrite sha512 and log first
+        if [ "$f" -le 1 ]; then
+            ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "${files[$f]}"
+        else
+            # check if it already downloaded and has the same sha512
+            if [ -f "${files[$f]}" ]; then
+                echo "[$f] ---> ${files[$f]} exists locally " | tee -a "$logfile"
+            else 
+                ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "${files[$f]}"
+            fi
+        fi
+    done
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+
+    # validate sha512 sum
+    echo "sha512      : validate sha512 sum " | tee -a "$logfile"
+
+    sha512sum -c "$sha512file"
+    if [ $? -ne 0 ]; then 
+        echo "sha512      : sha512 checksums failed" | tee -a "$logfile"
+        exit_bad
+    else
+        echo "sha512      : sha512 checksums passed" | tee -a "$logfile"
+    fi
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
 # set -x
 # set +x
-    
-    # check if they exist on server (or exit)
-    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : file $selected"."$sha512_filename_suffix not exists in ftp host" 
-        exit_bad
-    else
-        echo "nextcloud-mover : file $selected"."$sha512_filename_suffix exists in ftp host"
-    fi
-
-    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : file $selected"."$backup_log_suffix not exists in ftp host" 
-        exit_bad
-    else
-        echo "nextcloud-mover : file $selected"."$backup_log_suffix exists in ftp host"
-    fi
-
-    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : file $selected"."$pg_dump_filename_suffix not exists in ftp host" 
-        exit_bad
-    else
-        echo "nextcloud-mover : file $selected"."$pg_dump_filename_suffix exists in ftp host"
-    fi
-
-    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : file $selected"."$nextcloud_inst_filename_suffix not exists in ftp host" 
-        exit_bad
-    else
-        echo "nextcloud-mover : file $selected"."$nextcloud_inst_filename_suffix exists in ftp host"
-    fi
-
-    ftp_find "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : file $selected"."$nextcloud_data_filename_suffix not exists in ftp host" 
-        exit_bad
-    else
-        echo "nextcloud-mover : file $selected"."$nextcloud_data_filename_suffix exists in ftp host"
-    fi
-
-    # download 
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$sha512_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$backup_log_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$pg_dump_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_inst_filename_suffix"
-    ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$selected"."$nextcloud_data_filename_suffix"
-
-    # validate sha512 sum
-    sha512sum -c "$selected"."$sha512_filename_suffix"
-    if [ $? -ne 0 ]; then 
-        echo "nextcloud-mover : sha512 checksums failed" 
-        exit_bad
-    else
-        echo "nextcloud-mover : sha512 checksums passed"
-    fi
 
     # make sure db does not exist (or exit)
-    # make sure nextcloud installation does not exist (or exit)
-    # make sure nextcloud data files do not exist (or exit)
-    
     # restore db
+    
+    # handle "skip", "create" or "overwrite" else exit
+    # nextcloud installation
+    # nextcloud data files
+    
+    # create nextcloud installation directory
+    #mkdir -p /tmp/temp
+    # create nextcloud data files directory
+    #mkdir -p /tmp/temp
+
     # restore installation
+    #tar -xvf 20231019T110355Z.nextcloud-inst-files-backup.tar.gz -C /tmp/temp/
     # restore data files
+    #tar -xvf 20231019T110355Z.nextcloud-data-files-backup.tar.gz -C /tmp/temp/
 
 
 }
