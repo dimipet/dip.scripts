@@ -510,10 +510,22 @@ backup() {
     # backup nextcloud installation files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud installation files" 2>&1 | tee -a "$logfile"
-    tar -c --exclude="$src_nextcloud_data_path" \
-        -vpzf "$nextcloud_inst_bu_file" \
-        "$src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
-    echo "exec        : hashing $timestamp.$nextcloud_inst_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
+    echo "exec        : checking if $src_nextcloud_data_path is subdirectory of $src_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+    if [[ $src_nextcloud_data_path = $src_nextcloud_inst_path* ]]; then 
+        echo "exec        : $src_nextcloud_data_path is subdirectory of $src_nextcloud_inst_path" 2>&1 | tee -a "$logfile" 
+        # subtract sane prefix path
+        local exclude_data_path=${src_nextcloud_data_path#"$src_nextcloud_inst_path"}
+        # prefix path with dot otherwise tar will not handle it
+        exclude_data_path=".$exclude_data_path"
+        tar --exclude="$exclude_data_path" \
+            -C "$src_nextcloud_inst_path" \
+            -cvpzf "$nextcloud_inst_bu_file" . 2>&1 | tee -a "$logfile"
+    else
+        echo "exec        : $src_nextcloud_data_path is not subdirectory of $src_nextcloud_inst_path" 2>&1 | tee -a "$logfile" 
+        tar -C "$src_nextcloud_inst_path" \
+            -cvpzf "$nextcloud_inst_bu_file" . 2>&1 | tee -a "$logfile"
+    fi
+    echo "exec        : hashing $timestamp.$nextcloud_inst_filename_suffix to sha512file" 2>&1 | tee -a "$logfile" 
     sha512sum "$nextcloud_inst_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
@@ -524,7 +536,8 @@ backup() {
     # backup nextcloud data files
     local_start="$(date +%s)"
     echo "exec        : tar nextcloud data files" 2>&1 | tee -a "$logfile"
-    tar -cvpzf "$nextcloud_data_bu_file" "$src_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+    tar -C "$src_nextcloud_data_path" \
+        -cvpzf "$nextcloud_data_bu_file" . 2>&1 | tee -a "$logfile"
     echo "exec        : hashing $timestamp.$nextcloud_data_filename_suffix to sha512file" 2>&1 | tee -a "$logfile"        
     sha512sum "$nextcloud_data_bu_file" | tee -a "$sha512file" >/dev/null
     local_end="$(date +%s)"
