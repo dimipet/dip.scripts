@@ -37,6 +37,12 @@ dst_db_port="5432"
 dst_db_name="nextcloud"
 dst_db_user="postgres"
 dst_db_password=""
+# CAUTION: DATABASE DATA LOSS
+# handle database on destination, with the following options
+#   skip     : do nothing, no loss
+#   create   : drop and recreate everything (user, rights, database etc)
+dst_db_handle="create"
+dst_db_handle_valid_values=("skip" "create")
 
 # apache settings
 # used for sudo -u user occ maintenance:mode
@@ -44,23 +50,24 @@ src_apache_user="www-data"
 dst_apache_user="www-data"
 
 # nextcloud source system installation and data directory
-# FIXME data directory not used yet
 src_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
 src_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
 
 # nextcloud destination system installation directory
 dst_nextcloud_inst_path="/some/path/to/your/www/nextcloud/installation"
-# CAUTION: DATA LOSS
+# CAUTION: FILES DATA LOSS
 # handle nextcloud installation path on destination, with the following options
 #   skip     : do nothing, no loss
 #   create   : mkdir if it does not exist otherwise rm -rf && mkdir
 #   overwite : in any case untar in path specified
 dst_nextcloud_inst_path_handle="skip"
+dst_nextcloud_inst_path_valid_values=("skip" "create" "overwite")
 # nextcloud destination system data directory
 dst_nextcloud_data_path="/some/path/to/your/nextcloud/data/directory"
 # CAUTION: DATA LOSS
 # same as above but for data files
 dst_nextcloud_data_path_handle="skip"
+dst_nextcloud_data_path_valid_values=("skip" "create" "overwite")
 
 # lftp settings
 ftp_protocol="ftps"
@@ -201,7 +208,8 @@ exit_bad() {
     exit -1
 }
 
-check_postgres() {
+# common checks for src and dst postgres
+check_postgres(){
     local l_log="$1"
     local l_pg_user="$2"
     local l_db_host="$3"
@@ -209,14 +217,7 @@ check_postgres() {
     local l_db_name="$5"
     local l_db_user="$6"
     local l_db_password="$7"
-
-    if command -v pg_dump &>/dev/null; then
-        echo "checks      : postgres pg_dump found" | tee -a "$l_log"
-    else
-        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?" | tee -a "$l_log"
-        exit_bad
-    fi
-
+    
     # if lsof -Pi :"$l_db_port" -sTCP:LISTEN -t >/dev/null; then
     #     echo "checks      : postgres listening on port $l_db_port" | tee -a "$l_log"
     # else
@@ -227,11 +228,30 @@ check_postgres() {
     # make sure specific ip/host and specific port is accepting connections
     pg_isready -h "$l_db_host" -p "$l_db_port" | grep 'accepting connections' &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : postgres accepting connections" | tee -a "$l_log"
+        echo "checks      : postgres accepting connections @ $l_db_host:$l_db_port" | tee -a "$l_log"
     else
         # keep the error in log file
         pg_isready -h "$l_db_host" -p "$l_db_port" > /dev/null 2> >(tee -a "$l_log")
-        echo "checks      : postgres not accepting connections" | tee -a "$l_log"
+        echo "checks      : postgres not accepting connections $l_db_host:$l_db_port" | tee -a "$l_log"
+        exit_bad
+    fi   
+}
+
+check_src_postgres() {
+    local l_log="$1"
+    local l_pg_user="$2"
+    local l_db_host="$3"
+    local l_db_port="$4"
+    local l_db_name="$5"
+    local l_db_user="$6"
+    local l_db_password="$7"
+
+    check_postgres "$l_log" "$l_pg_user" "$l_db_host" "$l_db_port" "$l_db_name" "$l_db_user" "$l_db_password"
+
+    if command -v pg_dump &>/dev/null; then
+        echo "checks      : postgres pg_dump found" | tee -a "$l_log"
+    else
+        echo "checks      : pg_dump could not be found - are you sure you are running postgres in this host ?" | tee -a "$l_log"
         exit_bad
     fi
 
@@ -249,9 +269,41 @@ check_postgres() {
         echo "checks      : postgres database $l_db_user can not connect to $l_db_host:$l_db_port OR ..." | tee -a "$l_log"
         echo "checks      : postgres database $l_db_name does not exist" | tee -a "$l_log"
         exit_bad
-    fi
+    fi 
+
 }
 
+check_dst_postgres() {
+    local l_log="$1"
+    local l_pg_user="$2"
+    local l_db_host="$3"
+    local l_db_port="$4"
+    local l_db_name="$5"
+    local l_db_user="$6"
+    local l_db_password="$7"
+    local l_db_handle="$8"
+
+    check_postgres "$l_log" "$l_pg_user" "$l_db_host" "$l_db_port" "$l_db_name" "$l_db_user" "$l_db_password"
+    
+    if command -v pg_restore &>/dev/null; then
+        echo "checks      : postgres pg_restore found" | tee -a "$l_log"
+    else
+        echo "checks      : pg_restore could not be found - are you sure you are running postgres in this host ?" | tee -a "$l_log"
+        exit_bad
+    fi
+
+    # check handle values sanity
+    local db_value="\<${l_db_handle}\>"
+    if [[ "${dst_db_handle_valid_values[@]}" =~ $db_value ]]; then
+        echo "checks      : postgres db handle valid value found : '$l_db_handle'" | tee -a "$l_log"
+    else
+        echo "checks      : postgres db_handle invalid value found : '$l_db_handle'" | tee -a "$l_log"
+        exit_bad
+    fi
+
+}
+
+# common checks for src and dst nextcloud instances
 check_nextcloud() {
     local l_log="$1"
     local l_apache_user="$2"
@@ -304,14 +356,34 @@ check_dst_nextcloud() {
     local l_log="$1"
     local l_apache_user="$2"
     local l_nextcloud_inst_path="$3"
-    local l_nextcloud_data_path="$4"
+    local l_nextcloud_inst_path_handle="$4"
+    local l_nextcloud_data_path="$5"
+    local l_nextcloud_data_path_handle="$6"
+
+    # check handle values sanity
+    local inst_value="\<${l_nextcloud_inst_path_handle}\>"
+    if [[ "${dst_nextcloud_inst_path_valid_values[@]}" =~ $inst_value ]]; then
+        echo "checks      : nextcloud inst handle valid value found : '$l_nextcloud_inst_path_handle'"
+    else
+        echo "checks      : nextcloud inst handle invalid value found : '$l_nextcloud_inst_path_handle'"
+        exit_bad
+    fi
+
+    # check handle values sanity
+    local data_value="\<${l_nextcloud_data_path_handle}\>"
+    if [[ "${dst_nextcloud_data_path_valid_values[@]}" =~ $data_value ]]; then
+        echo "checks      : nextcloud data handle valid value found : '$l_nextcloud_data_path_handle'"
+    else
+        echo "checks      : nextcloud data handle invalid value found : '$l_nextcloud_data_path_handle'"
+        exit_bad
+    fi
 
     check_nextcloud "$l_apache_user" "$l_nextcloud_inst_path" "$l_nextcloud_data_path"
-    
+
     # check directory handle sanity
     if [ -d "$l_nextcloud_inst_path" ]; then
         echo "checks      : nextcloud installation exists in $l_nextcloud_inst_path" | tee -a "$l_log"
-        case "$dst_nextcloud_inst_path_handle" in
+        case "$l_nextcloud_inst_path_handle" in
             skip)
                 echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
@@ -319,25 +391,25 @@ check_dst_nextcloud() {
                 echo "checks      : nextcloud-mover will SKIP everyting"
                 ;;
             create)
-                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud INSTALLATION files"
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud installation files"
                 echo "checks      : nextcloud-mover will DELETE your $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will CREATE path $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will RESTORE a backup to $l_nextcloud_inst_path"
                 ;;
             overwrite)
-                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud INSTALLATION files"
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud installation files"
                 echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will RESTORE a backup to/and OVERWITE $l_nextcloud_inst_path"
                 ;;
             *)
-                echo "checks      : nextcloud-mover uknown option found: $dst_nextcloud_inst_path_handle"
+                echo "checks      : nextcloud-mover unknown option found: $l_nextcloud_inst_path_handle"
                 exit_bad
                 ;;
         esac
     else
         echo "checks      : nextcloud installation does not exist in $l_nextcloud_inst_path" | tee -a "$l_log"
-        case "$dst_nextcloud_inst_path_handle" in
+        case "$l_nextcloud_inst_path_handle" in
             skip)
                 echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_inst_path"
                 echo "checks      : nextcloud-mover will not RESTORE a backup to $l_nextcloud_inst_path"
@@ -352,7 +424,56 @@ check_dst_nextcloud() {
                 exit_bad
                 ;;
             *)
-                echo "checks      : nextcloud-mover uknown option found: $dst_nextcloud_inst_path_handle"
+                echo "checks      : nextcloud-mover unknown option found: $l_nextcloud_inst_path_handle"
+                exit_bad
+                ;;
+        esac
+    fi
+    
+    if [ -d "$l_nextcloud_data_path" ]; then
+        echo "checks      : nextcloud data exists in $l_nextcloud_data_path" | tee -a "$l_log"
+        case "$l_nextcloud_data_path_handle" in
+            skip)
+                echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will not RESTORE a backup to $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will SKIP everyting"
+                ;;
+            create)
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud DATA files"
+                echo "checks      : nextcloud-mover will DELETE your $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will CREATE path $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to $l_nextcloud_data_path"
+                ;;
+            overwrite)
+                echo "checks      : nextcloud-mover CAUTION !!! for you nextcloud DATA files"
+                echo "checks      : nextcloud-mover will not DELETE your $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to/and OVERWITE $l_nextcloud_data_path"
+                ;;
+            *)
+                echo "checks      : nextcloud-mover unknown option found: $l_nextcloud_data_path_handle"
+                exit_bad
+                ;;
+        esac
+    else
+        echo "checks      : nextcloud data does not exist in $l_nextcloud_data_path" | tee -a "$l_log"
+        case "$l_nextcloud_data_path_handle" in
+            skip)
+                echo "checks      : nextcloud-mover will not CREATE path $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will not RESTORE a backup to $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will SKIP everyting"
+                ;;
+            create)
+                echo "checks      : nextcloud-mover will CREATE path $l_nextcloud_data_path"
+                echo "checks      : nextcloud-mover will RESTORE a backup to $l_nextcloud_data_path"
+                ;;
+            overwrite)
+                echo "checks      : nextcloud-mover cannot OVERWITE path $l_nextcloud_data_path that does not exist"
+                exit_bad
+                ;;
+            *)
+                echo "checks      : nextcloud-mover unknown option found: $l_nextcloud_data_path_handle"
                 exit_bad
                 ;;
         esac
@@ -379,17 +500,17 @@ check_ftp() {
 
     timeout 3 bash -c "cat < /dev/null > /dev/tcp/$l_ftp_host/$l_ftp_port"
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp remote host $l_ftp_host is accepting requests on port $l_ftp_port" | tee -a "$l_log"
+        echo "checks      : ftp remote host accepting requests @ $l_ftp_host:$l_ftp_port" | tee -a "$l_log"
     else
-        echo "checks      : ftp remote host $l_ftp_host is not accepting requests on port $l_ftp_port" | tee -a "$l_log"
+        echo "checks      : ftp remote host not accepting requests @ $l_ftp_host:$l_ftp_port" | tee -a "$l_log"
         exit_bad
     fi
 
     ftp_list "$l_ftp_protocol" "$l_ftp_host" "$l_ftp_port" "$l_ftp_user" "$l_ftp_password" "$l_ftp_remote_dir" "$l_ftp_remote_sort" &>/dev/null
     if [ $? -eq 0 ]; then
-        echo "checks      : ftp can connect to remote host $ftp_host on port $ftp_port" | tee -a "$l_log"
+        echo "checks      : ftp lftp can connect to remote host @ $ftp_host:$ftp_port" | tee -a "$l_log"
     else
-        echo "checks      : ftp cannot connect to remote host $ftp_host on port $ftp_port" | tee -a "$l_log"
+        echo "checks      : ftp lftp cannot connect to remote host @ $ftp_host:$ftp_port" | tee -a "$l_log"
         exit_bad
     fi
 }
@@ -454,9 +575,13 @@ backup() {
     # check settings sanity
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
-    check_postgres "$logfile" "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
+    echo 'checks      : ---' | tee -a "$logfile"
+    check_src_postgres "$logfile" "$src_pg_user" "$src_db_host" "$src_db_port" "$src_db_name" "$src_db_user" "$src_db_password"
+    echo 'checks      : ---' | tee -a "$logfile"
     check_src_nextcloud "$logfile" "$src_apache_user" "$src_nextcloud_inst_path" "$src_nextcloud_data_path"
+    echo 'checks      : ---' | tee -a "$logfile"
     check_ftp "$logfile" "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer"
+    echo 'checks      : ---' | tee -a "$logfile"
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
@@ -602,7 +727,7 @@ restore() {
     local app_props
 
     # application properties check arg and if file exists
-    if [ -n "$1" -a -f "$1" ]; then
+    if [ -n "$1" ] && [ -f "$1" ]; then
         app_props="$1"
         source "$app_props"
         # change to working dir
@@ -636,33 +761,44 @@ restore() {
     local_end=0
     local_exec_time=0
 
-    # check settings sanity
+    # check if exceptional case to skip all
     local_start="$(date +%s)"
-    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
-    check_postgres "$logfile" "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password"
-    check_dst_nextcloud "$logfile" "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_data_path"
-    check_ftp "$logfile" "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer"
+    echo "skip        : check to skip restore of db, nextcloud installation and data files" | tee -a "$logfile"
+    if [ "$dst_nextcloud_inst_path_handle" == "skip" ] && [ "$dst_nextcloud_data_path_handle" == "skip" ] && [ "$dst_db_handle" == "skip" ]; then
+        echo "skip        : skipping all - nothing to do here - exiting ..." | tee -a "$logfile"
+        exit_bad
+    else
+        echo "skip        : not skipping - have got some things to do - proceeding ..." | tee -a "$logfile"
+    fi
     local_end="$(date +%s)"
     local_exec_time="$((local_end - local_start))"
     total_time="$((total_time + local_exec_time))"
     echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-    total_time=0
-
-    if [ "$dst_nextcloud_inst_path_handle" == "skip" -a "$dst_nextcloud_data_path_handle" == "skip" ]; then
-        echo "nextcloud-mover : skipping all" | tee -a "$logfile"
-        exit_bad
-    else
-        echo "nextcloud-mover : not skipping" | tee -a "$logfile"
-    fi
+    # check settings sanity
+    local_start="$(date +%s)"
+    echo "checks      : starting to check settings sanity" | tee -a "$logfile"
+    echo 'checks      : ---' | tee -a "$logfile"
+    check_dst_postgres "$logfile" "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" "$dst_db_handle"
+    echo 'checks      : ---' | tee -a "$logfile"
+    check_dst_nextcloud "$logfile" "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_inst_path_handle" "$dst_nextcloud_data_path" "$dst_nextcloud_data_path_handle"
+    echo 'checks      : ---' | tee -a "$logfile"
+    check_ftp "$logfile" "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer"
+    echo 'checks      : ---' | tee -a "$logfile"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
+    # select files to download
+    local_start="$(date +%s)"
     echo "select      : select files to download" | tee -a "$logfile"
     # get all restore candidates
     shas=$(ftp_list "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "$ftp_sorting_prefer")
     # filter only *.sha as we'll use them as toc to download
-    selected=$(echo $shas | sed 's/ /\n/g' | grep sha512 | head -n 1)
+    selected=$(echo "$shas" | sed 's/ /\n/g' | grep sha512 | head -n 1)
     # remove leading path of ftp_remote_dir
     selected=${selected/$ftp_remote_dir}
     # remove trailing '.hash.sha512' suffix
@@ -679,12 +815,17 @@ restore() {
     # 3rd db dump
     # 4th nextcloud installation files tar.gz
     # 5th nextcloud data files tar.gz
-    files=("$sha512file" "$backup_logfile" "$pg_dump_file" "$nextcloud_inst_bu_file" "$nextcloud_data_bu_file")
+    local files=("$sha512file" "$backup_logfile" "$pg_dump_file" "$nextcloud_inst_bu_file" "$nextcloud_data_bu_file")
     for f in "${!files[@]}"; do
         echo "select      : [$f] ---> ${files[$f]}" | tee -a "$logfile"
     done
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
+    # check if selected files exist on server
     echo "checks      : check if selected files exist on server (or exit)" | tee -a "$logfile"
     for f in "${!files[@]}"; do
         echo ""
@@ -696,11 +837,16 @@ restore() {
             echo "checks      : [$f] ---> ${files[$f]} exists in ftp host" | tee -a "$logfile"
         fi
     done
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
+    # download selected files
+    local_start="$(date +%s)"
     echo "download    : download selected files " | tee -a "$logfile"
     for f in "${!files[@]}"; do
-        echo ""
         echo "download    : [$f] ---> ${files[$f]}" | tee -a "$logfile"
         # always download and overwrite sha512 and log first
         if [ "$f" -le 1 ]; then
@@ -708,18 +854,21 @@ restore() {
         else
             # check if it already downloaded and has the same sha512
             if [ -f "${files[$f]}" ]; then
-                echo "[$f] ---> ${files[$f]} exists locally " | tee -a "$logfile"
+                echo "download    : [$f] ---> ${files[$f]} exists locally - skipping" | tee -a "$logfile"
             else 
                 ftp_download "$ftp_protocol" "$ftp_host" "$ftp_port" "$ftp_user" "$ftp_password" "$ftp_remote_dir" "${files[$f]}"
             fi
         fi
     done
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
 
-
     # validate sha512 sum
+    local_start="$(date +%s)"
     echo "sha512      : validate sha512 sum " | tee -a "$logfile"
-
     sha512sum -c "$sha512file"
     if [ $? -ne 0 ]; then 
         echo "sha512      : sha512 checksums failed" | tee -a "$logfile"
@@ -727,28 +876,151 @@ restore() {
     else
         echo "sha512      : sha512 checksums passed" | tee -a "$logfile"
     fi
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
     echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    # restore db
+    local_start="$(date +%s)"
+    sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$dst_db_name"
+    if [ $? -eq 0 ]; then
+        echo "db restore  : postgres db '$dst_db_name' already exists in $dst_db_host" | tee -a "$logfile"
+    else
+        echo "db restore  : postgres db '$dst_db_name' does not exist in $dst_db_host" | tee -a "$logfile"
+    fi
+
+    echo "db restore  : nextcloud-mover detected 'dst_db_handle=$dst_db_handle'" | tee -a "$logfile"
+    case "$dst_db_handle" in
+        skip)
+            echo "db restore  : nextcloud-mover will not DROP and CREATE your database '$dst_db_name'" | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will not DROP and CREATE your user '$dst_db_user'" | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will not GRANT rights to your user '$dst_db_user'" | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will not RESTORE a db dump to '$dst_db_name'" | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will SKIP everyting" | tee -a "$logfile"
+            ;;
+        create)
+            echo "db restore  : nextcloud-mover CAUTION !!! for you nextcloud database" | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will DROP and CREATE your '$dst_db_name' database" | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "DROP DATABASE IF EXISTS $dst_db_name;" 2>&1 | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "CREATE DATABASE nextcloud WITH ENCODING='UTF-8' LC_COLLATE 'el_GR.UTF-8' LC_CTYPE 'el_GR.UTF-8' TEMPLATE=template0;" 2>&1 | tee -a "$logfile"
+            echo "db restore  : nextcloud-mover will DROP and CREATE user '$dst_db_user' and GRANT rights" | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "DROP ROLE IF EXISTS $dst_db_user;" 2>&1 | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "CREATE ROLE $dst_db_user WITH LOGIN ENCRYPTED PASSWORD '$dst_db_password';" 2>&1 | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "GRANT ALL PRIVILEGES ON DATABASE $dst_db_name TO $dst_db_user;" 2>&1 | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql -c "ALTER DATABASE $dst_db_name OWNER TO $dst_db_user" 2>&1 | tee -a "$logfile"   
+            # FIXME encoding, collate, ctype and template should get retrieved from app.properties           
+            # FIXME check collation exists
+            #   echo $(locale -a | grep -E "el_GR|greek" should return
+            #       el_GR
+            #       el_GR.iso88597
+            #       el_GR.utf8
+            #       greek
+            # FIXME break_bad if collation not exist
+            #       echo $(locale -a | grep -E "el_GR|greek" | wc -l) should return 
+            #           4
+            # FIXME if collates not exist: sudo locale-gen el_GR && sudo locale-gen el_GR.UTF-8 && reboot
+            # 
+            echo "db restore  : nextcloud-mover will RESTORE a db dump to '$dst_db_name'" | tee -a "$logfile"
+            sudo -u "$dst_pg_user" psql --set ON_ERROR_STOP=on -d "$dst_db_name" -f "$pg_dump_file" 2>&1 | tee -a "$logfile"
+
+            ;;
+        *)
+            echo "db restore  : uknown" | tee -a "$logfile"
+            exit_bad
+            ;;
+    esac
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    # restore installation files
+    local_start="$(date +%s)"
+    echo "restore     : installation files restoring in $dst_nextcloud_inst_path" | tee -a "$logfile"
+    case "$dst_nextcloud_inst_path_handle" in
+        skip)
+            echo "restore     : nextcloud-mover will not delete the nextcloud installation directory '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not create a nextcloud installation directory at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not restore a nextcloud installation backup at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will SKIP everyting" | tee -a "$logfile"        
+            ;;
+        create)
+            echo "restore     : nextcloud-mover will delete the nextcloud installation directory '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            rm -rf "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will create a nextcloud installation directory at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            mkdir -p "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will restore a nextcloud installation backup at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            tar -xvf "$nextcloud_inst_bu_file" -C "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+            ;;
+        overwrite)
+            echo "restore     : nextcloud-mover will not delete the nextcloud installation directory '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not create a nextcloud installation directory at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will restore and overwrite a nextcloud installation backup at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
+            tar -xvf "$nextcloud_inst_bu_file" -C "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+            ;;
+        *)
+            echo "restore     : uknown" | tee -a "$logfile"
+            exit_bad
+            ;;
+    esac
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"    
+
+    # restore data files
+    local_start="$(date +%s)"
+    echo "restore     : data files restoring in $dst_nextcloud_data_path" | tee -a "$logfile"
+    case "$dst_nextcloud_data_path_handle" in
+        skip)
+            echo "restore     : nextcloud-mover will not delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will SKIP everyting" | tee -a "$logfile"         
+            ;;
+        create)
+            echo "restore     : nextcloud-mover will delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            rm -rf "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            mkdir -p "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            tar -xvf "$nextcloud_data_bu_file" -C "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+            ;;
+        overwrite)
+            echo "restore     : nextcloud-mover will not delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"        
+            echo "restore     : nextcloud-mover will restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            tar -xvf "$nextcloud_data_bu_file" -C "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
+            ;;
+        *)
+            echo "db restore  : uknown" | tee -a "$logfile"
+            exit_bad
+            ;;
+    esac
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"    
+
+    # set occ maintenance:mode / tar.gz backup gets created in src system when maintenance:mode is on
+    local_start="$(date +%s)"
+    echo "restore     : occ maintenance:mode --off" | tee -a "$logfile"
+    sudo -u www-data php "$dst_nextcloud_inst_path"/occ maintenance:mode --off 2>&1 | tee -a "$logfile"
+    local_end="$(date +%s)"
+    local_exec_time="$((local_end - local_start))"
+    total_time="$((total_time + local_exec_time))"
+    echo "exec time   : $local_exec_time seconds" | tee -a "$logfile"
+    echo '-------------------------------------------------------------------------' | tee -a "$logfile"
+
+    echo "total time  : $total_time seconds" | tee -a "$logfile"
 
 # set -x
 # set +x
-
-    # make sure db does not exist (or exit)
-    # restore db
-    
-    # handle "skip", "create" or "overwrite" else exit
-    # nextcloud installation
-    # nextcloud data files
-    
-    # create nextcloud installation directory
-    #mkdir -p /tmp/temp
-    # create nextcloud data files directory
-    #mkdir -p /tmp/temp
-
-    # restore installation
-    #tar -xvf 20231019T110355Z.nextcloud-inst-files-backup.tar.gz -C /tmp/temp/
-    # restore data files
-    #tar -xvf 20231019T110355Z.nextcloud-data-files-backup.tar.gz -C /tmp/temp/
-
 
 }
 
