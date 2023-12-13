@@ -977,23 +977,23 @@ restore() {
     echo "restore     : data files restoring in $dst_nextcloud_data_path" | tee -a "$logfile"
     case "$dst_nextcloud_data_path_handle" in
         skip)
-            echo "restore     : nextcloud-mover will not delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
-            echo "restore     : nextcloud-mover will not create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
-            echo "restore     : nextcloud-mover will not restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not DELETE the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not CREATE a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not RESTORE a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
             echo "restore     : nextcloud-mover will SKIP everyting" | tee -a "$logfile"         
             ;;
         create)
-            echo "restore     : nextcloud-mover will delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will DELETE the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
             rm -rf "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
-            echo "restore     : nextcloud-mover will create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will CREATE a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"
             mkdir -p "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
-            echo "restore     : nextcloud-mover will restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will RESTORE a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
             tar -xvf "$nextcloud_data_bu_file" -C "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
             ;;
         overwrite)
-            echo "restore     : nextcloud-mover will not delete the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
-            echo "restore     : nextcloud-mover will not create a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"        
-            echo "restore     : nextcloud-mover will restore a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not DELETE the nextcloud data directory '$dst_nextcloud_data_path'" | tee -a "$logfile"
+            echo "restore     : nextcloud-mover will not CREATE a nextcloud data directory at '$dst_nextcloud_data_path'" | tee -a "$logfile"        
+            echo "restore     : nextcloud-mover will RESTORE a nextcloud data backup at '$dst_nextcloud_data_path'" | tee -a "$logfile"
             tar -xvf "$nextcloud_data_bu_file" -C "$dst_nextcloud_data_path" 2>&1 | tee -a "$logfile"
             ;;
         *)
