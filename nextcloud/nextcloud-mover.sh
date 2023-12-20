@@ -43,6 +43,9 @@ dst_db_password=""
 #   create   : drop and recreate everything (user, rights, database etc)
 dst_db_handle="create"
 dst_db_handle_valid_values=("skip" "create")
+dst_db_encoding="UTF-8"
+dst_db_lc_collate="en_US.UTF-8"
+dst_db_lc_type="en_US.UTF-8"
 
 # apache settings
 # used for sudo -u user occ maintenance:mode
@@ -282,6 +285,9 @@ check_dst_postgres() {
     local l_db_user="$6"
     local l_db_password="$7"
     local l_db_handle="$8"
+    local l_db_encoding="$9"
+    local l_db_lc_collate="${10}"
+    local l_db_lc_type="${11}"
 
     check_postgres "$l_log" "$l_pg_user" "$l_db_host" "$l_db_port" "$l_db_name" "$l_db_user" "$l_db_password"
     
@@ -300,6 +306,21 @@ check_dst_postgres() {
         echo "checks      : postgres db_handle invalid value found : '$l_db_handle'" | tee -a "$l_log"
         exit_bad
     fi
+
+    # TODO check encoding exists
+    # 
+    # FIXME check collation exists
+    #   echo $(locale -a | grep -E "el_GR|greek" should return
+    #       el_GR
+    #       el_GR.iso88597
+    #       el_GR.utf8
+    #       greek
+    # FIXME break_bad if collation not exist
+    #       echo $(locale -a | grep -E "el_GR|greek" | wc -l) should return 
+    #           4
+    # FIXME if collates not exist: sudo locale-gen el_GR && sudo locale-gen el_GR.UTF-8 && reboot
+    # 
+    # sudo -u postgres psql -c "SELECT * FROM pg_collation WHERE ... LIKE 'utf8%'
 
 }
 
@@ -780,7 +801,9 @@ restore() {
     local_start="$(date +%s)"
     echo "checks      : starting to check settings sanity" | tee -a "$logfile"
     echo 'checks      : ---' | tee -a "$logfile"
-    check_dst_postgres "$logfile" "$dst_pg_user" "$dst_db_host" "$dst_db_port" "$dst_db_name" "$dst_db_user" "$dst_db_password" "$dst_db_handle"
+    check_dst_postgres "$logfile" "$dst_pg_user" "$dst_db_host" "$dst_db_port" \
+        "$dst_db_name" "$dst_db_user" "$dst_db_password" "$dst_db_handle" \
+        "dst_db_encoding" "dst_db_lc_collate" "dst_db_lc_type"
     echo 'checks      : ---' | tee -a "$logfile"
     check_dst_nextcloud "$logfile" "$dst_apache_user" "$dst_nextcloud_inst_path" "$dst_nextcloud_inst_path_handle" "$dst_nextcloud_data_path" "$dst_nextcloud_data_path_handle"
     echo 'checks      : ---' | tee -a "$logfile"
@@ -904,27 +927,21 @@ restore() {
             echo "db restore  : nextcloud-mover CAUTION !!! for you nextcloud database" | tee -a "$logfile"
             echo "db restore  : nextcloud-mover will DROP and CREATE your '$dst_db_name' database" | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql -c "DROP DATABASE IF EXISTS $dst_db_name;" 2>&1 | tee -a "$logfile"
-            sudo -u "$dst_pg_user" psql -c "CREATE DATABASE nextcloud WITH ENCODING='UTF-8' LC_COLLATE 'el_GR.UTF-8' LC_CTYPE 'el_GR.UTF-8' TEMPLATE=template0;" 2>&1 | tee -a "$logfile"
+            # Another common reason for copying template0 instead of template1 
+            # is that new encoding and locale settings can be specified when 
+            # copying template0, whereas a copy of template1 must use the same 
+            # settings it does. This is because template1 might contain 
+            # encoding-specific or locale-specific data, while template0 is 
+            # known not to. 
+            # https://www.postgresql.org/docs/10/manage-ag-templatedbs.html
+            sudo -u "$dst_pg_user" psql -c "CREATE DATABASE nextcloud WITH ENCODING='$dst_db_encoding' LC_COLLATE '$dst_db_lc_collate' LC_CTYPE '$dst_db_lc_type' TEMPLATE=template0;" 2>&1 | tee -a "$logfile"
             echo "db restore  : nextcloud-mover will DROP and CREATE user '$dst_db_user' and GRANT rights" | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql -c "DROP ROLE IF EXISTS $dst_db_user;" 2>&1 | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql -c "CREATE ROLE $dst_db_user WITH LOGIN ENCRYPTED PASSWORD '$dst_db_password';" 2>&1 | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql -c "GRANT ALL PRIVILEGES ON DATABASE $dst_db_name TO $dst_db_user;" 2>&1 | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql -c "ALTER DATABASE $dst_db_name OWNER TO $dst_db_user" 2>&1 | tee -a "$logfile"   
-            # FIXME encoding, collate, ctype and template should get retrieved from app.properties           
-            # FIXME check collation exists
-            #   echo $(locale -a | grep -E "el_GR|greek" should return
-            #       el_GR
-            #       el_GR.iso88597
-            #       el_GR.utf8
-            #       greek
-            # FIXME break_bad if collation not exist
-            #       echo $(locale -a | grep -E "el_GR|greek" | wc -l) should return 
-            #           4
-            # FIXME if collates not exist: sudo locale-gen el_GR && sudo locale-gen el_GR.UTF-8 && reboot
-            # 
             echo "db restore  : nextcloud-mover will RESTORE a db dump to '$dst_db_name'" | tee -a "$logfile"
             sudo -u "$dst_pg_user" psql --set ON_ERROR_STOP=on -d "$dst_db_name" -f "$pg_dump_file" 2>&1 | tee -a "$logfile"
-
             ;;
         *)
             echo "db restore  : uknown" | tee -a "$logfile"
