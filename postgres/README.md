@@ -1,4 +1,12 @@
-# move postgresql 10 data directory to new server via ftps
+# postgres utility scripts
+
+## postgres-list-ports-used.sh
+Shows ports used by side-by-side server installations.
+
+`dimipet@host:~$ sudo postgres-list-ports-used.sh`
+
+## postgres-backup-data-dir.sh 
+Moves postgresql 10 data directory to new server via ftps.
 
 This simple script stops postgresql server, compresses postgres data dir and ftps it to remote server. 
 Server is restarted before ftp.
