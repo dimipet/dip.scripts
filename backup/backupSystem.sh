@@ -1,3 +1,12 @@
+#!/bin/bash
+
+####################################################
+#
+# Simple tgz backup of /etc /root /var with usual dir 
+# exclusions and delete of 30+ days older backups
+#
+####################################################
+
 # get year then use it as directory
 YEAR=$(date +%Y)
 
