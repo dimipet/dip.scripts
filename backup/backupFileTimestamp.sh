@@ -8,8 +8,8 @@
 #
 ####################################################
 
-filename=$(basename $1)
-path=$(dirname $1)
+filename=$(basename "$1")
+path=$(dirname "$1")
 dest=$2
 
  if [ -e "$1" ] && [ -d "$dest" ]; then
