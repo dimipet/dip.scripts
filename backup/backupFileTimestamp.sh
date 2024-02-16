@@ -3,8 +3,8 @@
 ####################################################
 #
 # Simple backup of file with timestamp prefix. 
-# Deletes 30+ days old backups
-# Run with cron,
+# Deletes 30+ days old backups.
+# Run with cron.
 #
 ####################################################
 
@@ -13,7 +13,7 @@ path=$(dirname "$1")
 dest=$2
 
  if [ -e "$1" ] && [ -d "$dest" ]; then
-   tar -C "$path" -czvf "$dest"/$(date +%Y%m%dT%H%M%SZ)."$filename".tar.gz "$filename"
+   tar -C "$path" -czvf "$dest"/"$(date +%Y%m%dT%H%M%SZ)"."$filename".tar.gz "$filename"
    # delete 30+ days old
    find "$2" -name "*.gz" -type f -mtime +30 -delete
  else
