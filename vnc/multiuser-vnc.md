@@ -1,3 +1,6 @@
+Suppose you have 15 users that need to have a remote desktop to work (e.g. in a classroom).  
+You need a vnc server to do that.  
+
 # install
 
 using simple lubuntu "server",  install the following
@@ -43,6 +46,11 @@ lxterminal &
 /usr/bin/lxsession -s LXDE &
 ```
 
+open firewall ports, you probably need more that 15 as each time a user starts his own vmcserver instance will use one port. If some processes die you need more ports to accomodate.  
+```
+$ sudo ufw allow 5900:5920/tcp
+```
+
 deploy copy this to all users you want 
 probably you want to for-loop it but this is the idea
 ```
@@ -59,7 +67,6 @@ each user must
 1. ssh 
 2. create his password
 3. start his own server  
-server will assign some port to the user
 ```
 $ ssh user01@host
 
@@ -72,13 +79,23 @@ user01@host:~$ vncserver
 
 New 'X' desktop is host:1
 ```
+server assigned some port to the user  
+it said `host:1`, that means he should use port `5901`  
 
-user should now start his vnc client 
-and connect as user01@host:5901
+user should now start his vnc client of choice and connect as `user01@host:5901` with the password he created  
 
-to stop server
+
+to stop server, user should 
 ```
 user@host:~$ vncserver -kill :1
 ```
 
+if you want to see all vnc instances, connections
+```
+$ sudo netstat -peanut | grep "vnc"
+tcp        0      0 0.0.0.0:6001            0.0.0.0:*               LISTEN      1001       48380      3648/Xtightvnc      
+tcp        0      0 0.0.0.0:5901            0.0.0.0:*               LISTEN      1001       48382      3648/Xtightvnc      
+tcp        0      0 192.168.41.33:5901      192.168.41.30:34928     ESTABLISHED 1001       44674      3648/Xtightvnc
+tcp        0      0 192.168.41.33:5902      192.168.41.32:12325     ESTABLISHED 1001       44684      3648/Xtightvnc 
+```
 
