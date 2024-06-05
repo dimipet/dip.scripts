@@ -72,5 +72,7 @@ $ mosquitto_pub -u user02 -P user02 -m "ON" -t "garage/lights" -q 2
 ```
 
 # logging
+```
 $ sudo tail -f /var/log/mosquitto/mosquitto.log
+```
 
