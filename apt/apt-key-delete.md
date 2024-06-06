@@ -10,7 +10,7 @@ Warning: apt-key is deprecated. Manage keyring files in trusted.gpg.d instead (s
 
 ```
 
-apt-key is using /etc/apt/trusted.gpg and keys are added in /etc/apt/trusted.gpg.d
+apt-key is using `/etc/apt/trusted.gpg` and keys are added in `/etc/apt/trusted.gpg.d`
 
 lets delete e.g. docker key
 
