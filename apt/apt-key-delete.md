@@ -34,4 +34,4 @@ now lets delete the key
 dimipet@local:~$ sudo apt-key del 0EBFCD88
 ```
 
-dont forget to remove repo if needed from /etc/apt/sources.list.d
+dont forget to remove repo if needed from `/etc/apt/sources.list.d`
