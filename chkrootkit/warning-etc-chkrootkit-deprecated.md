@@ -15,4 +15,7 @@ delete old conf file
 ```
 $ sudo rm /etc/chkrootkit.conf 
 ```
-
+check that everything runs smooth
+```
+$ sudo test -x /usr/sbin/anacron || ( cd / && sudo run-parts --report /etc/cron.daily )
+```
