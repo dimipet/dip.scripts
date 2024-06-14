@@ -19,3 +19,7 @@ check that everything runs smooth
 ```
 $ sudo test -x /usr/sbin/anacron || ( cd / && sudo run-parts --report /etc/cron.daily )
 ```
+create the following file after one run
+```
+# sudo cp -a /var/log/chkrootkit/log.today /var/log/chkrootkit/log.expected
+```
