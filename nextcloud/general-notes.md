@@ -1,4 +1,4 @@
-# Create folder 
+# create folder 
 ```
 $ sudo mkdir /var/www/nextcloud/data/my-user-name/files/my-new-folder 
 $ sudo  chown www-data:www-data /var/www/nextcloud/data/my-user-name/files/my-new-folder 
