@@ -1,2 +1,2 @@
 # dip.scripts
-various scripts
+various scripts and notes
