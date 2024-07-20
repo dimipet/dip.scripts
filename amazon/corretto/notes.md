@@ -16,6 +16,12 @@ $ sudo apt-get update; sudo apt-get install -y java-17-amazon-corretto-jdk
 
 ```
 
+## install java-8
+```
+$ sudo apt-get update; sudo apt-get install -y java-1.8.0-amazon-corretto
+
+```
+
 ## manual
 ```
 $ sudo apt-get update && sudo apt-get install java-common
