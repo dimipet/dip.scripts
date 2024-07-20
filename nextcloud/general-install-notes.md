@@ -12,3 +12,10 @@ $ sudo -u www-data vim /var/www/nextcloud/.htaccess
   RewriteRule ^\.well-known/nodeinfo /nextcloud/index.php/.well-known/nodeinfo [R=301,L]
 </IfModule>
 ```
+
+# nextcloud cron jobs
+run every 5 minutes
+```
+$ sudo -u www-data crontab -e
+*/5  *  *  *  * php -f /var/www/nextcloud/cron.php
+```
