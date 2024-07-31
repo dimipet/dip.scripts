@@ -9,8 +9,8 @@
 
 ```
 $ git help <command> 
-$ git status –help     # Show the possible options for the status command in command line 
-$ git help --all     # Show all git possible commands in command line
+$ git status –help  # Show the possible options for the status command in command line 
+$ git help --all    # Show all git possible commands in command line
 ```
 
 # Initialize repo
@@ -61,35 +61,34 @@ $ git add -A         # Stage all new, modified, and deleted files
 renames and moves within git and within OS 
 
 ```
-$ git mv file1.txt fileA.txt     # not permanently renamed yet 
-$ git commit ...         # permanently renamed 
+$ git mv file1.txt fileA.txt    # not permanently renamed yet 
+$ git commit ...                # permanently renamed 
 ```
 
 undoing before commit
 
 ```
 $ git mv file1.txt fileA.txt
-$ git mv fileA.txt file1.txt     # undo before commit 
-$ git status             # everything will be clear / nothing to commit 
+$ git mv fileA.txt file1.txt    # undo before commit 
+$ git status                    # everything will be clear / nothing to commit 
 ```
 
 ## Move/Rename from OS
 
 ```
 $ mv file1.txt fileA.txt 
-$ ls –la         # will show the rename 
-$ git status         # git status will show 2 actions (1) deleted old files and (2) added new file with same contents 
-$ git add –A         # add changes and also add any files updated moved deleted. *CAREFULL: will add any file to stage index * 
-$ git status         # now git knows the rename  
-$ git commit -m ...     # finalize the rename 
-$ git status         # all clear 
+$ ls –la            # will show the rename 
+$ git status        # git status will show 2 actions (1) deleted old files and (2) added new file with same contents 
+$ git add –A        # add changes and also add any files updated moved deleted. *CAREFULL: will add any file to stage index * 
+$ git status        # now git knows the rename  
+$ git commit -m ... # finalize the rename 
+$ git status        # all clear 
 ```
 
-* If you don’t want to add any file then just add one-by-one manually
-  
-  ```
-  $ git add fileA.txt  
-  ```
+If you don’t want to add any file then just add one-by-one manually  
+```
+$ git add fileA.txt  
+```
 
 # Delete tracked files
 
@@ -99,17 +98,17 @@ deletes within git and within OS
 
 ```
 $ git rm fileA.txt
-$ git status        # staged for deletion, not permanently deleted yet 
-$ git commit -m ...    # commit deletion permanently deleted
+$ git status            # staged for deletion, not permanently deleted yet 
+$ git commit -m ...     # commit deletion permanently deleted
 ```
 
 undo delete before commit
 
 ```
-$ git reset HEAD fileA.txt    # remove before commit deletion within git 
-$ git status            # will report that file is deleted 
-$ git checkout -- fileA.txt    # recovers file 
-$ git status            # everything clear 
+$ git reset HEAD fileA.txt  # remove before commit deletion within git 
+$ git status                # will report that file is deleted 
+$ git checkout -- fileA.txt # recovers file 
+$ git status                # everything clear 
 ```
 
 ## Delete from OS
@@ -118,11 +117,11 @@ delete a file with OS commands
 
 ```
 $ rm fileA.txt 
-$ ls –la        # confirms file deletion from os 
+$ ls –la            # confirms file deletion from os 
 $ git status        # git status will show deleted file not staged for commit 
 $ git add –A        # add any files updated moved deleted. CAREFULL: will add any file to stage index * 
 $ git status        # git knows/staged the delete 
-$ git commit -m ...    # finalize deletion 
+$ git commit -m ... # finalize deletion 
 $ git status        # all clear 
 ```
 
@@ -130,15 +129,15 @@ delete a folder with OS commands
 
 ```
 $ rm –rf ./dir 
-$ ls –la        # confirm folder deletion from os 
+$ ls –la            # confirm folder deletion from os 
 $ git status        # git status will show all deleted folders and files not staged for commit 
 $ git add –A        # add any files updated moved deleted. CAREFULL: will add any file to stage index * 
 $ git status        # git knows/staged the deletions 
-$ git commit -m ...    # finalize deletion,  
-$ git status         # all clear 
+$ git commit -m ... # finalize deletion,  
+$ git status        # all clear 
 ```
 
-*If you don’t want to add any file the just add one-by-one manually 
+If you don’t want to add any file the just add one-by-one manually 
 
 ```
 $ git add ./dir
@@ -151,24 +150,24 @@ using `git log`
 ```
 $ git help log 
 $ git log --oneline --decorate --all --graph
-$ git log                # chronological with SHA1 
-$ git log --abbrev-commit        # sha-1 shortened 
-$ git log d6f7g89...g2h3j4k        # from commit to commit 
-$ git log --since="3 days ago"        # since 3 days ago
-$ git log -- fileA.txt            # show for specific file 
-$ git log --follow -- dirA/fileA.txt     # show for specific file and follow renames 
+$ git log                               # chronological with SHA1 
+$ git log --abbrev-commit               # sha-1 shortened 
+$ git log d6f7g89...g2h3j4k             # from commit to commit 
+$ git log --since="3 days ago"          # since 3 days ago
+$ git log -- fileA.txt                  # show for specific file 
+$ git log --follow -- dirA/fileA.txt    # show for specific file and follow renames 
 ```
 
 using `git show`
 
 ```
-$ git show                 # show content committed last commit 
-$ git show k6j5h43             # show content committed commit 
+$ git show              # show content committed last commit 
+$ git show k6j5h43      # show content committed commit 
 ```
 
 ```
-(master) $ git log            # shows log only from the current branch
-(master) $ git log --branches=*        # show log from every/all branches
+(master) $ git log                  # shows log only from the current branch
+(master) $ git log --branches=*     # show log from every/all branches
 ```
 
 # Alias
@@ -187,15 +186,16 @@ $ touch .gitignore
 $ nano .gitignore 
 $ git add .gitignore 
 $ git commit ... 
-$ git status # all clear 
+$ git status                # all clear 
 ```
 
 # Diff
 
 ## diff between 3 stages of git: working, stage and local repo
 
-`diff` & `difftool` can be used interchangeably 
-Compare local working directory with stage index area e.g.: modified fileA, added fileA to stage, re-modified fileA 
+`diff` & `difftool` can be used interchangeably  
+Compare local working directory with stage index area  
+e.g.: modified `fileA`, added `fileA` to stage, re-modified `fileA`
 
 ```
 $ git diff 
@@ -230,8 +230,8 @@ git diff master~5:pom.xml master:pom.xml # diff master branch current file to ma
 ```
 $ git log --oneline         # Check which commits to compare 
 $ git diff 5c05047 HEAD     # see all changes from all files from last commit to specific commit 
-$ git diff HEAD HEAD^         # see all changes from all files from last commit to previous 
-$ git diff 5c05047 789ade4     # see all changes from all files between 2 commits (i.e. ) 
+$ git diff HEAD HEAD^       # see all changes from all files from last commit to previous 
+$ git diff 5c05047 789ade4  # see all changes from all files between 2 commits (i.e. ) 
 ```
 
 ## diff between branches (local/remote)
@@ -244,7 +244,7 @@ $ git diff master origin/master # diff local master branch and remote master bra
 
 ## some terms
 
-`master` used to be the default name for branches
+`master` used to be the default name for branches  
 `main` is the default name for branches
 
 `origin` is a link representing {any|the|a} remote repo that the project was cloned from  
@@ -262,17 +262,20 @@ upstream branch = the branch you fetch/pull with `git fetch` `git pull` without 
 ## local branches
 
 ```
-$ git branch             # list local only branches, * starred is the current 
-$ git branch –a            # list all local/remote branches
-$ git branch -d somebranch     # delete branch
-$ git branch -m old new     # rename branch from old to new
-$ git checkout -b title        # create and switch to branch one line
-$ git branch mynew         # 2-step create new branch and ...
-$ git checkout mynew        # ... switch to it
-$ git log --oneline --decorate    # check how it looks in history
-                # `6e58a4d`  is our last commit, local `HEAD` points to mynew
-                # `origin/HEAD` points to remote branch
-                # All these branch labels point to the same commit
+$ git branch                        # list local only branches, * starred is the current 
+$ git branch –a                     # list all local/remote branches
+$ git branch -d somebranch          # delete branch
+$ git branch -m old new             # rename branch from old to new
+$ git checkout -b title             # create and switch to branch one line
+$ git branch mynew                  # 2-step create new branch and ...
+$ git checkout mynew                # ... switch to it
+$ git log --oneline --decorate      # check how it looks in history
+                                    # `6e58a4d`  is our last commit, local `HEAD` points to mynew
+                                    # `origin/HEAD` points to remote branch
+```
+## same pointer
+All these branch labels point to the same commit  
+```
 6e58a4d (HEAD -> mynewbranch, origin/master, origin/HEAD, master) update repo with changes from compare section 
 ```
 
@@ -291,31 +294,31 @@ $ git push            # shorthand for `git push origin master`, works only if cu
 `git pull` and `git push` works only if current checked out branch is tracking an upstream branch.
 
 ```
-$ git push -u origin master                # run once, set the upstream branch for master when using `git push` w/o arguments
-$ git push --set-upstream origin master            # same as previous, run once, set upstream branch when using `git push` w/o arguments
-$ git push                        # now you can push w/o arguments
+$ git push -u origin master             # run once, set the upstream branch for master when using `git push` w/o arguments
+$ git push --set-upstream origin master # same as previous, run once, set upstream branch when using `git push` w/o arguments
+$ git push                              # now you can push w/o arguments
 ```
 
 ## set push upstream branches
 
 ```
-$ git branch --set-upstream-to=origin/master master    # set the upstream branch for master when using `git pull` w/o arguments
-$ git pull                        # now you can pull w/o arguments
+$ git branch --set-upstream-to=origin/master master # set the upstream branch for master when using `git pull` w/o arguments
+$ git pull                                          # now you can pull w/o arguments
 ```
 
 ### push local branch to remote
 
 ```
-$ git switch -c new2            # create
-$ git branch -a                # confirm
-$ git push --set-upstream origin new2    # push, --set-upstream needs to run only once
+$ git switch -c new2                    # create
+$ git branch -a                         # confirm
+$ git push --set-upstream origin new2   # push, --set-upstream needs to run only once
 ```
 
 ### delete local and remote branch
 
 ```
-$ git branch --merged            # check that branch is already merged
-$ git branch -d initial_app        # deleted branch initial_app
+$ git branch --merged               # check that branch is already merged
+$ git branch -d initial_app         # deleted branch initial_app
 $ git push -d origin initial_app    # deleted remote branch
 ```
 
@@ -328,8 +331,8 @@ $ git push -d origin initial_app    # deleted remote branch
 ## merged vs nont merged branches
 
 ```
-$ git branch --merged            # show branches that are already merged
-$ git branch –no-merged            # show branches that not yet merged
+$ git branch --merged   # show branches that are already merged
+$ git branch –no-merged # show branches that not yet merged
 ```
 
 ## fast forward merge / ff-merge
@@ -345,17 +348,17 @@ After a ff-merge history is as follows
 ### ff-merge workflow
 
 ```
-(master) $ git checkout -b titles        # create and switch to new branch
-(titles) $ git nano ... save/exit        # add/edit files
-(titles) $ git commit -am "Changing title"    # commit and see log
-(titles) $ git log --oneline –decorate        # see history log
-(titles) $ git checkout master            # return to main branch, 
-(master) $ git diff master titles        # diff to see changes
-(master) $ git merge titles            # merge the branch to the current
-(master) $ git log --oneline --decorate --graph    # show that both branches point to same commit id
+(master) $ git checkout -b titles               # create and switch to new branch
+(titles) $ git nano ... save/exit               # add/edit files
+(titles) $ git commit -am "Changing title"      # commit and see log
+(titles) $ git log --oneline –decorate          # see history log
+(titles) $ git checkout master                  # return to main branch, 
+(master) $ git diff master titles               # diff to see changes
+(master) $ git merge titles                     # merge the branch to the current
+(master) $ git log --oneline --decorate --graph # show that both branches point to same commit id
 0aef36f (HEAD -> master, title) Changing title 
-(master) $ git branch -d titles            # we can delete branch
-(master) $ git log --oneline --decorate --graph    # deleted branch is not shown anymore
+(master) $ git branch -d titles                 # we can delete branch
+(master) $ git log --oneline --decorate --graph # deleted branch is not shown anymore
 0aef36f (HEAD -> master) Changing title
 ```
 
@@ -380,22 +383,22 @@ o---o---o---o---o---o
 ### non-ff-merge workflow
 
 ```
-(master) $ git checkout -b copyright            # create new branch
-(copyright) $ nano simple.html                # edit 1 file and commit
+(master) $ git checkout -b copyright                # create new branch
+(copyright) $ nano simple.html                      # edit 1 file and commit
 (copyright) $ git commit -am "add copyright"        # edit one more file and new commit 
-(copyright) $ nano README.md                # edit one more file
-(copyright) $ git commit -am "add more copyright"     # commit
-(copyright) $ git log --oneline --graph –decorate    # check: We have 2 commits that are part of this branch
-(copyright) $ git checkout master            # go to master branch and merge
+(copyright) $ nano README.md                        # edit one more file
+(copyright) $ git commit -am "add more copyright"   # commit
+(copyright) $ git log --oneline --graph –decorate   # check: We have 2 commits that are part of this branch
+(copyright) $ git checkout master                   # go to master branch and merge
 ```
 
 Be careful, this time we branched off, this is no fast forward  
 So we have to turn off fast forward  
 
 ```
-(master) $ git merge copyright --no-ff        # accept the merge message as is
-(master) $ git log --oneline --graph –decorate    # check: we will see the branching with the name of the branch
-(master) $ git branch -d copyright        # delete the branch
+(master) $ git merge copyright --no-ff          # accept the merge message as is
+(master) $ git log --oneline --graph –decorate  # check: we will see the branching with the name of the branch
+(master) $ git branch -d copyright              # delete the branch
 ```
 
 Check: we will see the branching with out the name of the branch  
@@ -416,17 +419,17 @@ switch to master, don't merge yet  BUT make changes and commit them
 merge new-branch in master  
 
 ```
-(master) $ git checkout -b simple        # switch to branch simple-changes
-(simple) $ nano humans.txt             # make changes 
-(simple) $ git commit -am "adding team member"    # commit changes
-(simple) $ git checkout master            # switch to master
-(master) $ nano README.md            # don't merge yet BUT make changes
-(master) $ git commit -am "adding info "    # commit changes 
+(master) $ git checkout -b simple               # switch to branch simple-changes
+(simple) $ nano humans.txt                      # make changes 
+(simple) $ git commit -am "adding team member"  # commit changes
+(simple) $ git checkout master                  # switch to master
+(master) $ nano README.md                       # don't merge yet BUT make changes
+(master) $ git commit -am "adding info "        # commit changes 
 (master) $ git log --oneline --graph --decorate # show log
-(master) $ git merge simple -m ....        # merge commit from simple branch
+(master) $ git merge simple -m ....             # merge commit from simple branch
 (master) $ git log --oneline --graph --decorate # will show how we branched off 
-(master) $ git branch -d simple-changes        # delete branch 
-(master) $ git log --oneline --graph --decorate    # show log
+(master) $ git branch -d simple-changes         # delete branch 
+(master) $ git log --oneline --graph --decorate # show log
 ```
 
 ## Merge conflicts with mergetool or p4merge
@@ -436,16 +439,16 @@ When you try to merge it will conflict
 Use some tool to resolve conflict  
 
 ```
-(master) $ git checkout -b realwork            # do changes in one branch 
-(realwork) $ nano simple.html                 # make changes in specific lines 
+(master) $ git checkout -b realwork             # do changes in one branch 
+(realwork) $ nano simple.html                   # make changes in specific lines 
 (realwork) $ git commit -am "making changes" 
-(realwork) $ git checkout master             # Go to the master braqnch and ...
-(master) $ nano simple.html                 # do changes again in same file in specific lines 
+(realwork) $ git checkout master                # Go to the master braqnch and ...
+(master) $ nano simple.html                     # do changes again in same file in specific lines 
 (master) $ git add simple.html              
-(master) $ git commit -m "..."                # commit
-(master) $ git diff master realwork            # diff between branches
-(master) $ git difftool master realwork            # diff again using difftool
-(master) $ git merge realwork                # try to merge, you get conflict
+(master) $ git commit -m "..."                  # commit
+(master) $ git diff master realwork             # diff between branches
+(master) $ git difftool master realwork         # diff again using difftool
+(master) $ git merge realwork                   # try to merge, you get conflict
 Auto-merging simple.html 
 CONFLICT (content): Merge conflict in simple.html 
 Automatic merge failed; fix conflicts and then commit the result.    
@@ -480,11 +483,11 @@ or use p4merge as it keeps original conflicted file *.orig in case something goe
 ```
 $ git status 
 $ nano simple.html.orig  
-$ nano .gitignore                    # Ignore *.orig files
+$ nano .gitignore                       # Ignore *.orig files
 $ git status 
 $ git add .gitignore                    # Commit .gitignore
-$ git commit -am "updating gitignore orig text files" 
-$ git log --oneline --graph –decorate            # check graph log
+$ git commit -am "updating gitignore" 
+$ git log --oneline --graph –decorate   # check graph log
 $ git branch -d realwork                # delete branch
 $ git log --oneline --graph –decorate
 ```
@@ -504,17 +507,17 @@ In case you've made a mistake while resolving a conflict and realize this only a
 # Stash
 
 ```
-$ git stash        # stash tracked files
-$ git stash -u        # stash tracked and untracked files
+$ git stash         # stash tracked files
+$ git stash -u      # stash tracked and untracked files
 $ git stash list    # show all stashes
-$ git stash pop        # 1-step Unstash using last stash then drop 
-$ git stash clear    # delete all stashed
+$ git stash pop     # 1-step Unstash using last stash then drop 
+$ git stash clear   # delete all stashed
 ```
 
 2-step Unstash using last stash then drop
 
 ```
-$ git stash apply    # unstash
+$ git stash apply   # unstash
 $ git stash drop    # drop
 ```
 
@@ -592,17 +595,17 @@ Then as usual merge/drop branch
 create lightweight tag from current commit, see/confirm it, then delete it
 
 ```
-(master) $ git tag myTag                # create for current commit 
-(master) $ git log --oneline --graph --decorate --all    # see it
+(master) $ git tag myTag                                # create for current commit 
+(master) $ git log --oneline --graph --decorate --all   # see it
 * a99c7ab (HEAD -> master, tag: myTag, origin/master, origin/HEAD) local: update simple.html copyright notice 
 * c056937 remote: minor change to index.html 
-(master) $ git tag --list                # see all tags / careful 2 dash otherwise it will create new tag named -list
+(master) $ git tag --list                               # see all tags / careful 2 dash otherwise it will create new tag named -list
 MyTag 
-(master) $ git show myTag                # see info of commit using myTag
-(master) $ git tag --delete myTag            # delete it
+(master) $ git show myTag                               # see info of commit using myTag
+(master) $ git tag --delete myTag                       # delete it
 Deleted tag 'myTag' (was a99c7ab) 
-(master) $ git tag --list                # check that it disappeared from tag list 
-(master) $ git log --oneline --graph --decorate --all    # check that it disappeared from log
+(master) $ git tag --list                               # check that it disappeared from tag list 
+(master) $ git log --oneline --graph --decorate --all   # check that it disappeared from log
 * a99c7ab (HEAD -> master, origin/master, origin/HEAD) local: update simple.html copyright notice 
 * c056937 remote: minor change to index.html 
 ```
@@ -613,10 +616,10 @@ same as a lightweight tag, except it has a little extra information.
 It usually has what's equivalent to a commit message, but for tags. 
 
 ```
-(master) $ git tag -a v-0.1                # create tag
-(master) $ git tag --list                # show all tags
-(master) $ git log --oneline --graph --decorate --all    # confirm tag in log
-(master) $ git show v-0.1                # will show all as lightweight but with commit message, commiter, diff, +++ etc
+(master) $ git tag -a v-0.1                                 # create tag
+(master) $ git tag --list                                   # show all tags
+(master) $ git log --oneline --graph --decorate --all       # confirm tag in log
+(master) $ git show v-0.1                                   # will show all as lightweight but with commit message, commiter, diff, +++ etc
 ```
 
 ## tag comparing
@@ -638,10 +641,10 @@ Lets edit some files and add many tags and then compare
 
 ```
 (master) $ git tag --list
-(master) $ git log --oneline --graph --decorate --all    # check log
-(master) $ git tag -a v-0.9-beta 0aef36f         # pick old commit and tag it
-(master) $ git log --oneline --graph --decorate --all    # check log, confirm tag
-(master) $ git tag -a v-0.8-beta 6e58a4d        # pick old commit and tag it
+(master) $ git log --oneline --graph --decorate --all   # check log
+(master) $ git tag -a v-0.9-beta 0aef36f                # pick old commit and tag it
+(master) $ git log --oneline --graph --decorate --all   # check log, confirm tag
+(master) $ git tag -a v-0.8-beta 6e58a4d                # pick old commit and tag it
 (master) $ git log --oneline --graph --decorate –all    # check log, confirm tags
 ```
 
@@ -670,8 +673,8 @@ Note that if you are changing an annotated tag, you need ensure that the new tag
 create tag for specific commit and with specific message and push it to remote repo
 
 ```
-$ git tag -a v0.31 3d4fe9b -m "version 0.31"        # create tag for commit id 3d4fe9b with -m message
-$ git push origin v0.31                    # push it
+$ git tag -a v0.31 3d4fe9b -m "version 0.31"    # create tag for commit id 3d4fe9b with -m message
+$ git push origin v0.31                         # push it
 ```
 
 ## tag update
