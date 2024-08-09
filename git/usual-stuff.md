@@ -1,10 +1,9 @@
---------------------------------------------------
-
-| Working   | Staging    |   Local   |   Remote  |
-| directory | Index Area |   Repo    |   Repo    |
-
---------------------------------------------------
-
+```
+---------------------------------------------------
+| Working    | Staging     |   Local   |  Remote  |  
+| directory  | Index Area  |   Repo    |  Repo    |  
+---------------------------------------------------
+```
 # Help
 
 ```
@@ -328,11 +327,11 @@ $ git push -d origin initial_app    # deleted remote branch
 
 # Merge
 
-## merged vs nont merged branches
-
+## merged vs non-merged branches
+show branches that are already merged and branches that not yet merged
 ```
-$ git branch --merged   # show branches that are already merged
-$ git branch –no-merged # show branches that not yet merged
+$ git branch --merged   # If your branch appears here then it is already merged
+$ git branch --no-merged # If your branch appears here then it is NOT merged
 ```
 
 ## fast forward merge / ff-merge
@@ -504,6 +503,24 @@ $ git merge –abort
 
 In case you've made a mistake while resolving a conflict and realize this only after completing the merge, you can still easily undo it: just roll back to the commit before the merge happened with `git reset --hard` and start over again. 
 
+## check if branch is merged
+### using --merged and --no-merged
+```
+$ git branch --merged   # If your branch appears here then it is already merged
+$ git branch -no-merged # If your branch appears here then it is NOT merged
+```
+### using git log
+If your branch commits appear in log then the branch has been merged into master
+```
+$ git checkout master
+$ git log
+```
+### using git merge-base
+use commands below to find the common ancestor of master and devel. If it is the same then branch is merged
+```
+$ git merge-base master devel
+$ git rev-parse devel
+```
 # Stash
 
 ```
