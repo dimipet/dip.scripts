@@ -35,7 +35,7 @@ configure your package manager
 $ sudo vim /etc/rkhunter.conf
 PKGMGR=DPKG
 ```
-and in /etc/default/rkhunter set
+and in `/etc/default/rkhunter` set
 ```
 APT_AUTOGEN="true"
 ```
