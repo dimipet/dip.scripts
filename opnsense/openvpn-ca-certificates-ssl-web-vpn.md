@@ -70,36 +70,13 @@ System --> Trust --> Certificates -->
 - email: ca@dimipet.com
 - cn: vpn.certificate
 
+If you have a ready running openvpn server/instance go ahead to set the certificate to use
+- VPN --> OpenVPN --> Instances --> Edit
+- certificate: SSLVPN Server Certificate
+- save - restart
 
+Now you can export new client config VPN --> OpenVPN --> ClientExport
 
-
-
-
-
-
-Set the openvpn
-- create new SSLVPN Server Certificate
-- change VPN->OpenVPN->Servers. Peer Certificate Authority and Server Certificate
-- create new User Certificates (System->Access->Users) using as Certificate Authority the new CA
-- export new Client config: VPN->OpenVPN->ClientExport
-
-
-
-
-# watchdog ping ip to use  
-- 208.67.222.222 and 208.67.220.220 (OpenDNS)
-- 1.1.1.1 and 1.0.0.1 (Cloudflare)
-- 8.8.8.8 and 8.8.4.4 (Google DNS)
-
-# show installed packages with version
-```
-$ pkg rquery '%n (%v)'
-```
-
-# show routing table
-```
-$ netstat -r
-```
 
 # References
 [1]: https://docs.opnsense.org/manual/how-tos/self-signed-chain.html
