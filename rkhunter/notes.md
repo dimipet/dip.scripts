@@ -27,6 +27,24 @@ PKGMGR=DPKG
 SUSPSCAN_TEMP=/dev/shm
 ```
 
+# configure apt
+after `apt upgrade` you will receive messages that files have changed  
+configure your package manager  
+
+```
+$ sudo vim /etc/rkhunter.conf
+PKGMGR=DPKG
+```
+and in /etc/default/rkhunter set
+```
+APT_AUTOGEN="true"
+```
+
+you can of course run manually after every apt update && apt upgrade
+```
+$ sudo rkhunter --update --propupd
+```
+
 # allow well known
 rkhunter false positives such as java prefs [3], firefox, etc
 
