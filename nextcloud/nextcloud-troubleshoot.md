@@ -18,3 +18,8 @@ $ sudo systemctl restart apache2.service
 
 https://github.com/nextcloud/server/issues/43301
 
+# big size of nextcloud directory
+```
+$ sudo apt-get install ncdu
+$ ncdu
+```
