@@ -22,6 +22,7 @@ You have to create users first.
     - key type: RSA-4096 
     - Digest: SHA512 
     - lifetime: 825 
+    - issuer: your main CA certicate
     - add country, state, city, organization, org.unit, 
     - add a real email, 
     - add a unique common name (CN)

@@ -11,7 +11,13 @@ verify - create accordingly
 $ ls -la /etc/systemd/system/multi-user.target.wants/openvpn*
 openvpn.service -> /lib/systemd/system/openvpn.service 
 openvpn@my.service -> /lib/systemd/system/openvpn@.service 
+```
+if `my.service` not exists create it with the command below and paste following content
+```
+$ sudo systemctl status openvpn@my.service
+```
 
+```
 $ cat /etc/systemd/system/multi-user.target.wants/openvpn.service  
 [Unit] 
 Description=OpenVPN service 
