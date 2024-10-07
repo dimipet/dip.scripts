@@ -965,12 +965,16 @@ restore() {
             echo "restore     : nextcloud-mover will SKIP everyting" | tee -a "$logfile"        
             ;;
         create)
+            #TODO config file echo "restore     : nextcloud-mover will BACKUP the nextcloud config.php" | tee -a "$logfile"
+            #TODO config file mv "$dst_nextcloud_inst_path"/config/config.php . | tee -a "$logfile"
             echo "restore     : nextcloud-mover will DELETE the nextcloud installation directory '$dst_nextcloud_inst_path'" | tee -a "$logfile"
             rm -rf "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
             echo "restore     : nextcloud-mover will CREATE a nextcloud installation directory at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
             mkdir -p "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
             echo "restore     : nextcloud-mover will RESTORE a nextcloud installation backup at '$dst_nextcloud_inst_path'" | tee -a "$logfile"
             tar -xvf "$nextcloud_inst_bu_file" -C "$dst_nextcloud_inst_path" 2>&1 | tee -a "$logfile"
+            #TODO config file echo "restore     : nextcloud-mover will RESTORE the nextcloud config.php" | tee -a "$logfile"
+            #TODO config file mv ./config.php "$dst_nextcloud_inst_path"/config/ | tee -a "$logfile"
             ;;
         overwrite)
             echo "restore     : nextcloud-mover will not DELETE the nextcloud installation directory '$dst_nextcloud_inst_path'" | tee -a "$logfile"
