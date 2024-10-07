@@ -19,6 +19,17 @@ $ sudo fail2ban-client status apache-noscript
 
 ```
 
+show jails
+```
+$ sudo fail2ban-client status
+```
+
+ban specific ip for jail apache-noscript
+```
+$ sudo fail2ban-client -vvv set apache-noscript banip WW.XX.YY.ZZ
+```
+
+
 systemd stuff
 ```
 $ sudo systemctl status fail2ban
