@@ -25,6 +25,12 @@ MAIL-ON-WARNING=root
 WEB_CMD=""
 PKGMGR=DPKG
 SUSPSCAN_TEMP=/dev/shm
+ALLOWHIDDENFILE=/etc/.updated
+```
+
+# after changes
+```
+$ sudo rkhunter --update --propupd
 ```
 
 # configure apt
