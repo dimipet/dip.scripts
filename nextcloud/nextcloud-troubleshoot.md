@@ -23,3 +23,16 @@ https://github.com/nextcloud/server/issues/43301
 $ sudo apt-get install ncdu
 $ ncdu
 ```
+
+# apache server js.map files
+you get error
+```
+Your webserver is not set up to serve `.js.map` files.   
+Without these files, JavaScript Source Maps won't function properly, 
+making it more challenging to troubleshoot and debug any issues that may arise.
+```
+check you get 200 OK when when
+```
+$ curl -I https://mydomain.name/apps/settings/js/map-test.js.map
+```
+
