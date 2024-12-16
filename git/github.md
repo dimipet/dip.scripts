@@ -15,3 +15,8 @@ $ git commit -m "initial pom"
 $ git push --set-upstream origin devel          # just once
 ```
 
+# clone private repository
+using ssh
+```
+$ git clone git@github.com:dimipet/myrepo.git
+```
