@@ -1,3 +1,43 @@
+# command line based updater
+```
+$ sudo -u www-data php /var/www/nextcloud/updater/updater.phar
+Nextcloud Updater - version: vxx.0.0-44
+
+Current version is xx.0.2.
+
+Update to Nextcloud xx.0.4 available. (channel: "stable")
+Following file will be downloaded automatically: https://download.nextcloud.com/server/releases/nextcloud-xx.0.4.zip
+(...)
+Start update? [y/N] y
+
+[✔] Check for expected files
+[✔] Check for write permissions
+[✔] Create backup
+[✔] Downloading
+[✔] Verify integrity
+[✔] Extracting
+[✔] Enable maintenance mode
+[✔] Replace entry points
+[✔] Delete old files
+[✔] Move new files in place
+[✔] Done
+
+Update of code successful.
+
+Should the "occ upgrade" command be executed? [Y/n] y
+(...)
+
+Update successful
+Maintenance mode is kept active
+Resetting log level
+
+Keep maintenance mode active? [y/N] n
+Maintenance mode disabled
+
+Maintenance mode is disabled
+
+```
+
 # occ command not found
 ```
 $ sudo -u www-data chmod u+x /var/www/nextcloud/occ
