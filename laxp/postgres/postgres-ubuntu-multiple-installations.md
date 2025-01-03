@@ -52,17 +52,18 @@ $ pg_ctlcluster 11 anotherdb stop
 ```
 
 or  
+
 ```
 $ sudo systemctl stop postgresql@11-anotherdb  
 
-
-## create new cluster
+```
+## create new cluster 
 ```
 $ pg_createcluster 10 pg10newdb  
 ```
  
 
-## list 
+## list clusters
 ```
 $ pg_lsclusters  
 ```
