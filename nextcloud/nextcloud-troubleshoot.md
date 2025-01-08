@@ -36,3 +36,14 @@ check you get 200 OK when when
 $ curl -I https://mydomain.name/apps/settings/js/map-test.js.map
 ```
 
+# cron job cli, .ocdata in root folder
+you get message 
+```
+The cron job could not be run via the CLI. The following technical errors appeared:
+     The data folder is invalid Make sure there is an ".ocdata" file in the root of the data folder.
+```
+solve it with 
+```
+$ sudo -u www-data touch /var/www/nextcloud/data/.ocdata
+
+```
