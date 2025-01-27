@@ -1,6 +1,13 @@
 # Install syncthing for multiple users in Ubuntu using system service.
 
-According to https://docs.syncthing.net/users/autostart.html#linux , you have two primary options when installing syncthing: You can set up Syncthing as a system service, or a user service. (1) Running Syncthing as a system service ensures that Syncthing is run at startup even if the Syncthing user has no active session. Since the system service keeps Syncthing running even without an active user session, it is intended to be used on a server. (2) Running Syncthing as a user service ensures that Syncthing only starts after the user has logged into the system (e.g., via the graphical login screen, or ssh). Thus, the user service is intended to be used on a (multiuser) desktop computer. It avoids unnecessarily running Syncthing instances.
+According to [https://docs.syncthing.net/users/autostart.html#linux](https://docs.syncthing.net/users/autostart.html#linux) , you have two primary options when installing syncthing: You can set up Syncthing
+
+  * as a system service, or 
+  * as a user service. 
+
+Running Syncthing as a system service ensures that Syncthing is run at startup even if the Syncthing user has no active session. Since the system service keeps Syncthing running even without an active user session, it is intended to be used on a server. 
+
+Running Syncthing as a user service ensures that Syncthing only starts after the user has logged into the system (e.g., via the graphical login screen, or ssh). Thus, the user service is intended to be used on a (multiuser) desktop computer. It avoids unnecessarily running Syncthing instances.
 
 Goal here is the 1st option: install syncthing for each user and run it as system service.
 
