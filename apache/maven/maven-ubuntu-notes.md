@@ -17,5 +17,9 @@ $ mvn -X clean package
 [DEBUG] Reading global toolchains from /usr/share/maven/conf/toolchains.xml
 [DEBUG] Reading user toolchains from /home/dimipet/.m2/toolchains.xml
 [DEBUG] Using local repository at /home/dimipet/.m2/repository
+```
 
+try use 
+```
+$ mvn -X clean package | grep Reading
 ```
