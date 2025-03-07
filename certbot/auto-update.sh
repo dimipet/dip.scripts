@@ -26,7 +26,7 @@ else
 	echo "props       : no argument for external file supplied" >>/var/log/certbot.log 2>&1
 fi
 
-certbot renew --pre-hook "$pre_script" --post-hook "$post_script" --dry-run >>/var/log/certbot.log 2>&1
+certbot renew --pre-hook "$pre_script" --post-hook "$post_script" >>/var/log/certbot.log 2>&1
 
 TIMESTAMP=$(date +"%Y%m%dT%H%M%SZ")
 echo "Ended at : $TIMESTAMP" >>/var/log/certbot.log 2>&1
